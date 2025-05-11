@@ -17,7 +17,6 @@ export function Message(props: ChatMessage) {
         {
           "justify-end": isUser,
           "justify-start": !isUser,
-          "opacity-50": status === "pending",
         }
       )}
     >
