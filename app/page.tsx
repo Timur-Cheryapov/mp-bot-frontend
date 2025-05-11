@@ -1,14 +1,13 @@
-import { getExampleMessages } from "@/lib/example-chat-data"
 import Link from 'next/link';
 
 export default function Home() {
   
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+    <main className="flex min-h-screen flex-col items-center justify-center p-6 md:p-24">
       <h1 className="text-4xl font-bold mb-8">MP Bot</h1>
       
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <Link 
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl">
+        <Link 
           href="/chat" 
           className="p-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
         >
