@@ -13,8 +13,7 @@ export default function OpenAITestPage() {
     setError(null);
     
     try {
-      // TODO: Change api route to use the new conversation endpoint
-      const response = await fetch('/api/openai/test');
+      const response = await fetch('http://localhost:3001/api/joke');
       const data = await response.json();
       
       setTestResult(data);

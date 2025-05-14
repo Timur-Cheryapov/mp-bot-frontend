@@ -162,7 +162,7 @@ export default function MetricsDashboard() {
   };
   
   return (
-    <div className="container mx-auto p-4 pt-24 max-w-6xl">
+    <div className="container mx-auto p-4 max-w-6xl">
       <div className="flex flex-col gap-6">
         {/* Header with User Info */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
