@@ -7,6 +7,8 @@ import { ChatBody } from "@/components/ChatBody"
 import { ChatFooter } from "@/components/ChatFooter"
 import { ChatMessage, MessageRole, MessageStatus, Conversation } from "@/lib/types/conversation"
 import { createUiMessage } from "@/lib/utils/converters"
+import * as conversationService from "@/lib/conversation-service"
+import { checkAuthStatus } from "@/lib/auth-service"
 
 interface ChatProps {
   initialMessages?: ChatMessage[]
@@ -25,6 +27,23 @@ export function Chat({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversation, setConversation] = useState<Conversation | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  
+  // Check user authentication on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { isAuthenticated, user } = await checkAuthStatus()
+        if (isAuthenticated && user) {
+          setUserId(user.id)
+        }
+      } catch (err) {
+        console.error("Error checking authentication:", err)
+      }
+    }
+    
+    checkAuth()
+  }, [])
   
   // Function to create a new conversation
   const createNewConversation = async (content: string) => {
@@ -62,34 +81,16 @@ export function Chat({
         return;
       }
       
-      // TODO: Change api route to use the new conversation endpoint
-      const response = await fetch('/api/conversation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          initialSystemPrompt: systemPrompt,
-          initialUserMessage: content,
-          userId: '00000000-0000-0000-0000-000000000000',
-        }),
-      })
+      // Use the conversation service to create a new conversation
+      const result = await conversationService.createConversation(
+        content,
+        systemPrompt,
+        userId
+      );
       
-      const data = await response.json()
+      setConversation(result.conversation);
+      setMessages(result.messages);
       
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create conversation')
-      }
-      
-      setConversation(data.conversation)
-      
-      // Process messages to ensure timestamps are Date objects
-      const processedMessages = data.conversation.messages.map((msg: any) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp)
-      }))
-      
-      setMessages(processedMessages)
     } catch (err: any) {
       setError(err.message || 'An error occurred')
       
@@ -152,33 +153,15 @@ export function Chat({
         return;
       }
 
-      // TODO: Change api route to use the new conversation endpoint
-      const response = await fetch(`/api/conversation/${conversation!.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: content,
-          userId: '00000000-0000-0000-0000-000000000000',
-        }),
-      })
+      // Use the conversation service to send a message to an existing conversation
+      const result = await conversationService.sendMessage(
+        conversation!.id,
+        content,
+        userId
+      );
       
-      const data = await response.json()
+      setMessages(result.messages);
       
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send message')
-      }
-      
-      setConversation(data.conversation)
-      
-      // Process messages to ensure timestamps are Date objects
-      const processedMessages = data.conversation.messages.map((msg: any) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp)
-      }))
-      
-      setMessages(processedMessages)
     } catch (err: any) {
       setError(err.message || 'An error occurred')
       
