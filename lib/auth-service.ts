@@ -1,5 +1,10 @@
 const API_BASE_URL = 'http://localhost:3001/api/auth';
 
+// Cache for CSRF token
+let cachedCsrfToken: string | null = null;
+let tokenExpiryTime: number | null = null;
+const TOKEN_LIFETIME_MS = 10 * 60 * 1000; // 10 minutes
+
 export interface User {
   id: string;
   name: string;
@@ -19,6 +24,12 @@ export interface AuthResponse {
  * @returns The CSRF token
  */
 export async function fetchCsrfToken(): Promise<string> {
+  // Return cached token if it's still valid
+  const now = Date.now();
+  if (cachedCsrfToken && tokenExpiryTime && now < tokenExpiryTime) {
+    return cachedCsrfToken;
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/csrf-token`, {
       credentials: 'include'
@@ -29,11 +40,25 @@ export async function fetchCsrfToken(): Promise<string> {
     }
     
     const data = await response.json();
+    
+    // Cache the token with expiry time
+    cachedCsrfToken = data.csrfToken;
+    tokenExpiryTime = Date.now() + TOKEN_LIFETIME_MS;
+    
     return data.csrfToken;
   } catch (error) {
     console.error('Error fetching CSRF token:', error);
     throw error;
   }
+}
+
+/**
+ * Invalidates the cached CSRF token
+ * Used when a new token is needed (e.g., after logout)
+ */
+export function invalidateCsrfToken(): void {
+  cachedCsrfToken = null;
+  tokenExpiryTime = null;
 }
 
 /**
@@ -73,7 +98,7 @@ export async function checkAuthStatus(): Promise<{ isAuthenticated: boolean; use
  */
 export async function login(email: string, password: string): Promise<AuthResponse> {
   try {
-    // Get fresh CSRF token
+    // Get CSRF token (cached if available)
     const csrfToken = await fetchCsrfToken();
     
     const response = await fetch(`${API_BASE_URL}/login`, {
@@ -112,7 +137,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
  */
 export async function signup(name: string, email: string, password: string): Promise<AuthResponse> {
   try {
-    // Get fresh CSRF token
+    // Get CSRF token (cached if available)
     const csrfToken = await fetchCsrfToken();
     
     const response = await fetch(`${API_BASE_URL}/signup`, {
@@ -149,7 +174,7 @@ export async function signup(name: string, email: string, password: string): Pro
  */
 export async function resendVerificationEmail(email: string): Promise<{ success: boolean; message?: string }> {
   try {
-    // Get fresh CSRF token
+    // Get CSRF token (cached if available)
     const csrfToken = await fetchCsrfToken();
     
     const response = await fetch(`${API_BASE_URL}/resend-verification`, {
@@ -183,7 +208,7 @@ export async function resendVerificationEmail(email: string): Promise<{ success:
  */
 export async function logout(): Promise<{ success: boolean; message?: string }> {
   try {
-    // Get fresh CSRF token
+    // Get CSRF token (cached if available)
     const csrfToken = await fetchCsrfToken();
     
     const response = await fetch(`${API_BASE_URL}/logout`, {
@@ -196,6 +221,11 @@ export async function logout(): Promise<{ success: boolean; message?: string }> 
     });
     
     const data = await response.json();
+    
+    // Invalidate the token after logout
+    if (response.ok) {
+      invalidateCsrfToken();
+    }
     
     return {
       success: response.ok,

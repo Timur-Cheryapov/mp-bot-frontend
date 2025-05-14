@@ -24,6 +24,14 @@ export default function Home() {
         </Link>
 
         <Link 
+          href="/metrics-demo" 
+          className="p-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <h2 className="text-xl font-semibold mb-2">Metrics Demo</h2>
+          <p>Test the metrics service</p>
+        </Link>
+
+        <Link 
           href="/connection-test" 
           className="p-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
         >
