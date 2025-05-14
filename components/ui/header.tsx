@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "./button";
 import { checkAuthStatus } from "@/lib/auth-service";
-import type { User } from "@/lib/auth-service";
 
 export function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -17,7 +16,7 @@ export function Header() {
       const { isAuthenticated, user } = await checkAuthStatus();
       
       setIsLoggedIn(isAuthenticated);
-      setUserName(user?.name || "User");
+      setUserName(user?.user_metadata?.name || "User");
     } catch (error) {
       console.error("Error in auth verification:", error);
       setIsLoggedIn(false);

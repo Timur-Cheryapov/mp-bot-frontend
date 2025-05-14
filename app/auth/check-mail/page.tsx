@@ -102,7 +102,7 @@ export default function CheckMail() {
             variant="outline" 
             className="w-full"
             onClick={handleResendEmail}
-            disabled={isResending}
+            disabled={true} // Resend email is not yet implemented
           >
             {isResending ? "Sending..." : "Resend Verification Email"}
           </Button>
