@@ -20,15 +20,7 @@ export default function Home() {
           className="p-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
         >
           <h2 className="text-xl font-semibold mb-2">Conversation Test</h2>
-          <p>Test the conversation service with OpenAI (backend only)</p>
-        </Link>
-
-        <Link 
-          href="/metrics-demo" 
-          className="p-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <h2 className="text-xl font-semibold mb-2">Metrics Demo</h2>
-          <p>Test the metrics service</p>
+          <p>Test the conversation service with OpenAI and metrics (backend only)</p>
         </Link>
 
         <Link 
