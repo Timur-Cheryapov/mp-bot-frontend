@@ -9,41 +9,67 @@ import { ChatMessage, MessageRole, MessageStatus, Conversation } from "@/lib/typ
 import { createUiMessage } from "@/lib/utils/converters"
 import * as conversationService from "@/lib/conversation-service"
 import { checkAuthStatus } from "@/lib/auth-service"
+import { useRouter, useParams } from "next/navigation"
 
 interface ChatProps {
   initialMessages?: ChatMessage[]
   title?: string
   systemPrompt?: string
   demoMode?: boolean
+  conversationId?: string
 }
 
 export function Chat({ 
   initialMessages = [],
   title = "Chat",
   systemPrompt = "You are a friendly AI assistant. Answer shortly.",
-  demoMode = false
+  demoMode = false,
 }: ChatProps) {
+  const params = useParams()
+  const router = useRouter()
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [conversation, setConversation] = useState<Conversation | null>(null)
+  const [conversation, setConversation] = useState<Conversation | null>(null) // totally not the conversation object, it server-side
   const [userId, setUserId] = useState<string | null>(null)
+  const [conversationId, setConversationId] = useState<string | null>(null)
   
-  // Check user authentication on component mount
+  // Check user authentication and load existing conversation if ID is provided
   useEffect(() => {
-    const checkAuth = async () => {
+    const initialize = async () => {
       try {
+        // Check authentication
         const { isAuthenticated, user } = await checkAuthStatus()
         if (isAuthenticated && user) {
           setUserId(user.id)
         }
+
+        // Load existing conversation if ID is in URL params
+        const urlConversationId = params?.conversationId as string
+        if (urlConversationId && !demoMode) {
+          setIsLoading(true)
+          const result = await conversationService.getConversation(urlConversationId)
+          setConversation(result.conversation)
+          setMessages(result.messages)
+          setConversationId(urlConversationId)
+          setIsLoading(false)
+        }
       } catch (err) {
-        console.error("Error checking authentication:", err)
+        console.error("Error during initialization:", err)
+        setError("Failed to load conversation")
+        setIsLoading(false)
       }
     }
     
-    checkAuth()
-  }, [])
+    initialize()
+  }, [params])
+
+  // Update URL when conversation ID changes
+  useEffect(() => {
+    if (conversationId && !demoMode) {
+      window.history.replaceState({}, '', `/chat/${conversationId}`)
+    }
+  }, [conversationId, demoMode])
   
   // Function to create a new conversation
   const createNewConversation = async (content: string) => {
@@ -89,6 +115,7 @@ export function Chat({
       );
       
       setConversation(result.conversation);
+      setConversationId(result.conversation.id);
       setMessages(result.messages);
       
     } catch (err: any) {
