@@ -67,13 +67,21 @@ export function invalidateCsrfToken(): void {
  */
 export async function checkAuthStatus(): Promise<{ isAuthenticated: boolean; user?: User }> {
   try {
+    // Use AbortController to set a timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
     const response = await fetch(`${API_BASE_URL}/me`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
       },
-      credentials: 'include'
+      credentials: 'include',
+      signal: controller.signal
     });
+    
+    // Clear the timeout
+    clearTimeout(timeoutId);
     
     if (response.ok) {
       const data = await response.json();
@@ -85,7 +93,12 @@ export async function checkAuthStatus(): Promise<{ isAuthenticated: boolean; use
     
     return { isAuthenticated: false };
   } catch (error) {
-    console.error('Error checking auth status:', error);
+    // Check if it's a network error
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.warn('Network error while checking auth status - server might be down');
+    } else {
+      console.error('Error checking auth status:', error);
+    }
     return { isAuthenticated: false };
   }
 }

@@ -3,7 +3,7 @@
 import React from "react"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
-import { cn } from "@/lib/utils/tailwind-cn"
+import { cn } from "@/lib/utils"
 
 interface ChatHeaderProps {
   title?: string

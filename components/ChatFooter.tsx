@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils/tailwind-cn"
+import { cn } from "@/lib/utils"
 
 // Maximum character limit for messages
 const MAX_CHARS = 2000
