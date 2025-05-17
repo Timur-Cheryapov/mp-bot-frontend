@@ -6,10 +6,16 @@ const API_URL = 'http://localhost:3001/api';
 /**
  * Fetches metrics data from the API
  */
-export async function fetchMetrics() {
+export async function fetchMetrics(date?: string) {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_URL}/metrics`, {
+    const url = new URL(`${API_URL}/metrics`);
+    
+    if (date) {
+      url.searchParams.append('date', date);
+    }
+    
+    const response = await fetch(url.toString(), {
       headers: {
         'X-CSRF-Token': token
       },
