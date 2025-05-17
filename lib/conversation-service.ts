@@ -10,7 +10,6 @@ const API_BASE_URL = 'http://localhost:3001/api';
 export async function createConversation(
   initialUserMessage: string,
   systemPrompt: string,
-  userId: string | null = null
 ): Promise<{ conversation: Conversation, messages: ChatMessage[] }> {
   try {
     const token = await fetchCsrfToken();
@@ -23,7 +22,6 @@ export async function createConversation(
       body: JSON.stringify({
         message: initialUserMessage,
         systemPrompt,
-        userId,
         title: 'New Conversation' // Default title
       }),
       credentials: 'include'
@@ -35,16 +33,10 @@ export async function createConversation(
     }
 
     const data = await response.json();
-    
-    // Process messages to ensure timestamps are Date objects
-    const processedMessages = data.history.map((msg: any) => ({
-      ...msg,
-      timestamp: new Date(msg.timestamp)
-    }));
 
     return {
       conversation: data.conversation,
-      messages: processedMessages
+      messages: data.messages
     };
   } catch (error) {
     console.error('Error creating conversation:', error);
@@ -58,7 +50,6 @@ export async function createConversation(
 export async function sendMessage(
   conversationId: string,
   content: string,
-  userId: string | null = null
 ): Promise<{ messages: ChatMessage[] }> {
   try {
     const token = await fetchCsrfToken();
@@ -70,7 +61,6 @@ export async function sendMessage(
       },
       body: JSON.stringify({
         message: content,
-        userId
       }),
       credentials: 'include'
     });
@@ -81,15 +71,9 @@ export async function sendMessage(
     }
 
     const data = await response.json();
-    
-    // Process messages to ensure timestamps are Date objects
-    const processedMessages = data.messages.map((msg: any) => ({
-      ...msg,
-      timestamp: new Date(msg.timestamp)
-    }));
 
     return {
-      messages: processedMessages
+      messages: data.messages
     };
   } catch (error) {
     console.error('Error sending message:', error);
@@ -125,7 +109,11 @@ export async function getConversations(
       throw new Error(data.error || 'Failed to get conversations');
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    return {
+      conversations: data.conversations
+    };
   } catch (error) {
     console.error('Error getting conversations:', error);
     throw error;
@@ -153,16 +141,10 @@ export async function getConversation(
     }
 
     const data = await response.json();
-    
-    // Process messages to ensure timestamps are Date objects
-    const processedMessages = data.messages.map((msg: any) => ({
-      ...msg,
-      timestamp: new Date(msg.timestamp)
-    }));
 
     return {
       conversation: data.conversation,
-      messages: processedMessages
+      messages: data.messages
     };
   } catch (error) {
     console.error('Error getting conversation:', error);

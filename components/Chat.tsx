@@ -26,24 +26,16 @@ export function Chat({
   demoMode = false,
 }: ChatProps) {
   const params = useParams()
-  const router = useRouter()
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversation, setConversation] = useState<Conversation | null>(null) // totally not the conversation object, it server-side
-  const [userId, setUserId] = useState<string | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   
   // Check user authentication and load existing conversation if ID is provided
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Check authentication
-        const { isAuthenticated, user } = await checkAuthStatus()
-        if (isAuthenticated && user) {
-          setUserId(user.id)
-        }
-
         // Load existing conversation if ID is in URL params
         const urlConversationId = params?.conversationId as string
         if (urlConversationId && !demoMode) {
@@ -111,7 +103,6 @@ export function Chat({
       const result = await conversationService.createConversation(
         content,
         systemPrompt,
-        userId
       );
       
       setConversation(result.conversation);
@@ -184,7 +175,6 @@ export function Chat({
       const result = await conversationService.sendMessage(
         conversation!.id,
         content,
-        userId
       );
       
       setMessages(result.messages);
@@ -239,7 +229,7 @@ export function Chat({
       role="region"
       aria-label="Chat interface"
     >
-      <ChatHeader title={conversation?.metadata?.title || title} onClear={clearMessages} />
+      <ChatHeader title={conversation?.title || title} onClear={clearMessages} />
       <ChatBody messages={messages} />
       <ChatFooter onSendMessage={sendMessage} disabled={isLoading} />
     </Card>

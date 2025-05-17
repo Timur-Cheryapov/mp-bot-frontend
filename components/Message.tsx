@@ -30,7 +30,6 @@ export function Message(props: ChatMessage) {
             {
               "bg-primary text-primary-foreground rounded-tr-none": isUser,
               "bg-muted rounded-tl-none": !isUser && role === "assistant",
-              "bg-yellow-100 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100": role === "system"
             }
           )}
         >
@@ -42,7 +41,7 @@ export function Message(props: ChatMessage) {
           isUser ? "justify-end" : "justify-start"
         )}>
           <time className="text-[10px] sm:text-xs">
-            {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </time>
           
           {status !== "success" && (

@@ -17,6 +17,6 @@ export function createUiMessage(
     role,
     content,
     status,
-    timestamp: new Date()
+    timestamp: new Date().toISOString()
   };
 }
