@@ -1,8 +1,43 @@
 import { ChatMessage, Conversation } from "@/lib/types/conversation";
 import { fetchCsrfToken } from './auth-service';
 
-// Backend API URL
-const API_BASE_URL = 'http://localhost:3001/api';
+// Define the base API URL for conversation service
+const API_BASE_URL = 'http://localhost:3001/api/conversation';
+
+// Custom error class for API errors
+export class ApiError extends Error {
+  status: number;
+  
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+// Function to handle API responses
+async function handleResponse(response: Response) {
+  if (response.ok) {
+    return response.json();
+  }
+  
+  // Handle unauthorized errors specifically
+  if (response.status === 401) {
+    throw new ApiError('Authentication required', 401);
+  }
+  
+  // Handle other error types
+  let errorMessage = 'An error occurred';
+  try {
+    const errorData = await response.json();
+    errorMessage = errorData.message || errorMessage;
+  } catch (e) {
+    // If parsing fails, use status text
+    errorMessage = response.statusText || errorMessage;
+  }
+  
+  throw new ApiError(errorMessage, response.status);
+}
 
 /**
  * Creates a new conversation with the initial message
@@ -13,7 +48,7 @@ export async function createConversation(
 ): Promise<{ conversation: Conversation, messages: ChatMessage[] }> {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/conversation/new`, {
+    const response = await fetch(`${API_BASE_URL}/new`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,20 +62,12 @@ export async function createConversation(
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to create conversation');
-    }
-
-    const data = await response.json();
-
-    return {
-      conversation: data.conversation,
-      messages: data.messages
-    };
+    return handleResponse(response);
   } catch (error) {
-    console.error('Error creating conversation:', error);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Failed to create conversation', 500);
   }
 }
 
@@ -53,7 +80,7 @@ export async function sendMessage(
 ): Promise<{ messages: ChatMessage[] }> {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/conversation/${conversationId}`, {
+    const response = await fetch(`${API_BASE_URL}/${conversationId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -65,19 +92,12 @@ export async function sendMessage(
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to send message');
-    }
-
-    const data = await response.json();
-
-    return {
-      messages: data.messages
-    };
+    return handleResponse(response);
   } catch (error) {
-    console.error('Error sending message:', error);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Failed to send message', 500);
   }
 }
 
@@ -97,26 +117,19 @@ export async function getConversations(
       offset: String(offset)
     });
     
-    const response = await fetch(`${API_BASE_URL}/conversation?${queryParams}`, {
+    const response = await fetch(`${API_BASE_URL}?${queryParams}`, {
       headers: {
         'X-CSRF-Token': token
       },
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to get conversations');
-    }
-
-    const data = await response.json();
-
-    return {
-      conversations: data.conversations
-    };
+    return handleResponse(response);
   } catch (error) {
-    console.error('Error getting conversations:', error);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Failed to get conversations', 500);
   }
 }
 
@@ -128,27 +141,19 @@ export async function getConversation(
 ): Promise<{ conversation: Conversation, messages: ChatMessage[] }> {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/conversation/${conversationId}`, {
+    const response = await fetch(`${API_BASE_URL}/${conversationId}`, {
       headers: {
         'X-CSRF-Token': token
       },
       credentials: 'include'
     });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to get conversation');
-    }
-
-    const data = await response.json();
-
-    return {
-      conversation: data.conversation,
-      messages: data.messages
-    };
+    
+    return handleResponse(response);
   } catch (error) {
-    console.error('Error getting conversation:', error);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Failed to get conversation', 500);
   }
 }
 
@@ -161,7 +166,7 @@ export async function updateConversationTitle(
 ): Promise<void> {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/conversation/${conversationId}`, {
+    const response = await fetch(`${API_BASE_URL}/${conversationId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -171,13 +176,12 @@ export async function updateConversationTitle(
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to update conversation title');
-    }
+    return handleResponse(response);
   } catch (error) {
-    console.error('Error updating conversation title:', error);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Failed to update conversation title', 500);
   }
 }
 
@@ -187,7 +191,7 @@ export async function updateConversationTitle(
 export async function archiveConversation(conversationId: string): Promise<void> {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/conversation/${conversationId}/archive`, {
+    const response = await fetch(`${API_BASE_URL}/${conversationId}/archive`, {
       method: 'POST',
       headers: {
         'X-CSRF-Token': token
@@ -195,13 +199,12 @@ export async function archiveConversation(conversationId: string): Promise<void>
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to archive conversation');
-    }
+    return handleResponse(response);
   } catch (error) {
-    console.error('Error archiving conversation:', error);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Failed to archive conversation', 500);
   }
 }
 
@@ -211,7 +214,7 @@ export async function archiveConversation(conversationId: string): Promise<void>
 export async function unarchiveConversation(conversationId: string): Promise<void> {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/conversation/${conversationId}/unarchive`, {
+    const response = await fetch(`${API_BASE_URL}/${conversationId}/unarchive`, {
       method: 'POST',
       headers: {
         'X-CSRF-Token': token
@@ -219,13 +222,12 @@ export async function unarchiveConversation(conversationId: string): Promise<voi
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to unarchive conversation');
-    }
+    return handleResponse(response);
   } catch (error) {
-    console.error('Error unarchiving conversation:', error);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Failed to unarchive conversation', 500);
   }
 }
 
@@ -235,7 +237,7 @@ export async function unarchiveConversation(conversationId: string): Promise<voi
 export async function deleteConversation(conversationId: string): Promise<void> {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/conversation/${conversationId}`, {
+    const response = await fetch(`${API_BASE_URL}/${conversationId}`, {
       method: 'DELETE',
       headers: {
         'X-CSRF-Token': token
@@ -243,12 +245,11 @@ export async function deleteConversation(conversationId: string): Promise<void> 
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to delete conversation');
-    }
+    return handleResponse(response);
   } catch (error) {
-    console.error('Error deleting conversation:', error);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Failed to delete conversation', 500);
   }
 } 

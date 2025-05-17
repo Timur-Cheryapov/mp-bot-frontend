@@ -9,6 +9,7 @@ import { ChatMessage, Conversation } from "@/lib/types/conversation"
 import { createUiMessage } from "@/lib/utils/converters"
 import * as conversationService from "@/lib/conversation-service"
 import { useParams } from "next/navigation"
+import { AuthRequiredDialog } from "@/components/AuthRequiredDialog"
 
 interface ChatProps {
   initialMessages?: ChatMessage[]
@@ -28,8 +29,9 @@ export function Chat({
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [conversation, setConversation] = useState<Conversation | null>(null) // totally not the conversation object, it server-side
+  const [conversation, setConversation] = useState<Conversation | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [showAuthDialog, setShowAuthDialog] = useState(false)
   
   // Check user authentication and load existing conversation if ID is provided
   useEffect(() => {
@@ -45,9 +47,16 @@ export function Chat({
           setConversationId(urlConversationId)
           setIsLoading(false)
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error during initialization:", err)
-        setError("Failed to load conversation")
+        
+        if (err.status === 401) {
+          setShowAuthDialog(true)
+          setError("Authentication required")
+        } else {
+          setError("Failed to load conversation")
+        }
+        
         setIsLoading(false)
       }
     }
@@ -61,6 +70,44 @@ export function Chat({
       window.history.replaceState({}, '', `/chat/${conversationId}`)
     }
   }, [conversationId, demoMode])
+  
+  // Function to handle API errors
+  const handleApiError = (err: any) => {
+    if (err.status === 401) {
+      setShowAuthDialog(true)
+      setError("Authentication required")
+      
+      // Update the pending message to show auth error
+      setMessages(prevMessages => {
+        const updatedMessages = [...prevMessages]
+        const lastMessage = updatedMessages[updatedMessages.length - 1]
+        if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
+          updatedMessages[updatedMessages.length - 1] = {
+            ...lastMessage,
+            status: "error",
+            content: "Authentication required. Please sign in to continue.",
+          }
+        }
+        return updatedMessages
+      })
+    } else {
+      setError(err.message || 'An error occurred')
+      
+      // Update the pending message to show error
+      setMessages(prevMessages => {
+        const updatedMessages = [...prevMessages]
+        const lastMessage = updatedMessages[updatedMessages.length - 1]
+        if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
+          updatedMessages[updatedMessages.length - 1] = {
+            ...lastMessage,
+            status: "error",
+            content: "Failed to get response. Please try again.",
+          }
+        }
+        return updatedMessages
+      })
+    }
+  }
   
   // Function to create a new conversation
   const createNewConversation = async (content: string) => {
@@ -109,21 +156,7 @@ export function Chat({
       setMessages(result.messages);
       
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
-      
-      // Update the pending message to show error
-      setMessages(prevMessages => {
-        const updatedMessages = [...prevMessages]
-        const lastMessage = updatedMessages[updatedMessages.length - 1]
-        if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-          updatedMessages[updatedMessages.length - 1] = {
-            ...lastMessage,
-            status: "error",
-            content: "Failed to get response. Please try again.",
-          }
-        }
-        return updatedMessages
-      })
+      handleApiError(err)
     } finally {
       setIsLoading(false)
     }
@@ -179,21 +212,7 @@ export function Chat({
       setMessages(result.messages);
       
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
-      
-      // Update the pending message to show error
-      setMessages(prevMessages => {
-        const updatedMessages = [...prevMessages]
-        const lastMessage = updatedMessages[updatedMessages.length - 1]
-        if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-          updatedMessages[updatedMessages.length - 1] = {
-            ...lastMessage,
-            status: "error",
-            content: "Failed to get response. Please try again.",
-          }
-        }
-        return updatedMessages
-      })
+      handleApiError(err)
     } finally {
       setIsLoading(false)
     }
@@ -219,18 +238,30 @@ export function Chat({
     setError(null)
   }
 
+  // Function to close the auth dialog
+  const handleCloseAuthDialog = () => {
+    setShowAuthDialog(false)
+  }
+
   return (
-    <Card 
-      className="flex flex-col w-full h-[90vh] sm:h-[80vh] 
-        max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl 
-        mx-auto overflow-hidden rounded-xl shadow-lg 
-        border-muted-foreground/20 p-0"
-      role="region"
-      aria-label="Chat interface"
-    >
-      <ChatHeader title={conversation?.title || title} onClear={clearMessages} />
-      <ChatBody messages={messages} />
-      <ChatFooter onSendMessage={sendMessage} disabled={isLoading} />
-    </Card>
+    <>
+      <Card 
+        className="flex flex-col w-full h-[90vh] sm:h-[80vh] 
+          max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl 
+          mx-auto overflow-hidden rounded-xl shadow-lg 
+          border-muted-foreground/20 p-0"
+        role="region"
+        aria-label="Chat interface"
+      >
+        <ChatHeader title={conversation?.title || title} onClear={clearMessages} />
+        <ChatBody messages={messages} />
+        <ChatFooter onSendMessage={sendMessage} disabled={isLoading} />
+      </Card>
+      
+      <AuthRequiredDialog 
+        isOpen={showAuthDialog}
+        onClose={handleCloseAuthDialog}
+      />
+    </>
   )
 } 
