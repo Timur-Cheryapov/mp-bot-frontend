@@ -5,11 +5,10 @@ import { Card } from "@/components/ui/card"
 import { ChatHeader } from "@/components/ChatHeader"
 import { ChatBody } from "@/components/ChatBody"
 import { ChatFooter } from "@/components/ChatFooter"
-import { ChatMessage, MessageRole, MessageStatus, Conversation } from "@/lib/types/conversation"
+import { ChatMessage, Conversation } from "@/lib/types/conversation"
 import { createUiMessage } from "@/lib/utils/converters"
 import * as conversationService from "@/lib/conversation-service"
-import { checkAuthStatus } from "@/lib/auth-service"
-import { useRouter, useParams } from "next/navigation"
+import { useParams } from "next/navigation"
 
 interface ChatProps {
   initialMessages?: ChatMessage[]
@@ -88,7 +87,7 @@ export function Chat({
             if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
               updatedMessages[updatedMessages.length - 1] = {
                 ...lastMessage,
-                status: "success" as MessageStatus,
+                status: "success",
                 content: `I'm in demo mode. You said: "${content}"`,
               };
             }
@@ -119,7 +118,7 @@ export function Chat({
         if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
           updatedMessages[updatedMessages.length - 1] = {
             ...lastMessage,
-            status: "error" as MessageStatus,
+            status: "error",
             content: "Failed to get response. Please try again.",
           }
         }
@@ -160,7 +159,7 @@ export function Chat({
             if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
               updatedMessages[updatedMessages.length - 1] = {
                 ...lastMessage,
-                status: "success" as MessageStatus,
+                status: "success",
                 content: `I'm in demo mode. You said: "${content}"`,
               };
             }
@@ -189,7 +188,7 @@ export function Chat({
         if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
           updatedMessages[updatedMessages.length - 1] = {
             ...lastMessage,
-            status: "error" as MessageStatus,
+            status: "error",
             content: "Failed to get response. Please try again.",
           }
         }

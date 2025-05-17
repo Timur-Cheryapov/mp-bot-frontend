@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -9,16 +9,13 @@ import { notifyAuthStateChanged, checkAuthStatus } from "@/lib/auth-service";
 import type { User } from "@/lib/auth-service";
 
 export default function VerifyHandler() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
   const [userData, setUserData] = useState<User | undefined>(undefined);
-  const [isVerifying, setIsVerifying] = useState(false);
   
   // Extract token and type from the URL
   const token = searchParams.get("token");
-  const type = searchParams.get("type");
   
   useEffect(() => {
     let attempts = 0;

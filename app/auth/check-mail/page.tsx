@@ -66,7 +66,7 @@ export default function CheckMail() {
               </svg>
             </div>
             <p className="text-base text-gray-600">
-              We've sent a verification link to <span className="font-semibold">{email}</span>
+              We have sent a verification link to <span className="font-semibold">{email}</span>
             </p>
           </div>
           
@@ -88,7 +88,7 @@ export default function CheckMail() {
                 <div className="mt-2 text-sm text-blue-700">
                   <ul className="list-disc pl-5 space-y-1">
                     <li>Click the verification link in the email</li>
-                    <li>You'll be redirected back to our site</li>
+                    <li>You will be redirected back to our site</li>
                     <li>Once verified, you can start using your account</li>
                   </ul>
                 </div>
