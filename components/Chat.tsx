@@ -8,8 +8,11 @@ import { ChatFooter } from "@/components/ChatFooter"
 import { ChatMessage, Conversation } from "@/lib/types/conversation"
 import { createUiMessage } from "@/lib/utils/converters"
 import * as conversationService from "@/lib/conversation-service"
+import * as streamingService from "@/lib/conversation-streaming-service" 
 import { useParams } from "next/navigation"
 import { AuthRequiredDialog } from "@/components/AuthRequiredDialog"
+
+const thinkingMessage = "Assistant is thinking..."
 
 interface ChatProps {
   initialMessages?: ChatMessage[]
@@ -17,6 +20,7 @@ interface ChatProps {
   systemPrompt?: string
   demoMode?: boolean
   conversationId?: string
+  enableStreaming?: boolean
 }
 
 export function Chat({ 
@@ -24,6 +28,7 @@ export function Chat({
   title = "Chat",
   systemPrompt = "You are a friendly AI assistant. Answer shortly.",
   demoMode = false,
+  enableStreaming = true,
 }: ChatProps) {
   const params = useParams()
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
@@ -101,7 +106,7 @@ export function Chat({
           updatedMessages[updatedMessages.length - 1] = {
             ...lastMessage,
             status: "error",
-            content: "Failed to get response. Please try again.",
+            content: "Failed to get response. Please try again. Error: " + error,
           }
         }
         return updatedMessages
@@ -109,7 +114,86 @@ export function Chat({
     }
   }
   
-  // Function to create a new conversation
+  // Function to create a new conversation with streaming
+  const createNewStreamingConversation = async (content: string) => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      // Add user message to UI immediately
+      const userMessage = createUiMessage(content, 'user', 'success')
+      setMessages(prev => [...prev, userMessage])
+      
+      // Add a pending bot message that will be updated with streaming chunks
+      const pendingBotMessage = createUiMessage(thinkingMessage, 'assistant', 'pending')
+      setTimeout(() => {
+        setMessages(prev => [...prev, pendingBotMessage])
+      }, 300)
+      
+      await streamingService.createStreamingConversation(
+        content,
+        systemPrompt,
+        {
+          onChunk: (chunk) => {
+            // Update the assistant message content as chunks arrive
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              const lastMessage = updatedMessages[updatedMessages.length - 1]
+              if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
+                if (lastMessage.content === thinkingMessage) {
+                  updatedMessages[updatedMessages.length - 1] = {
+                    ...lastMessage,
+                    content: chunk,
+                  }
+                } else {
+                  updatedMessages[updatedMessages.length - 1] = {
+                    ...lastMessage,
+                    content: lastMessage.content + chunk,
+                  }
+                }
+              }
+              return updatedMessages
+            })
+          },
+          onComplete: async (fullContent, conversationId) => {
+            // Finalize the response
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              const lastMessage = updatedMessages[updatedMessages.length - 1]
+              if (lastMessage && lastMessage.role === "assistant") {
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...lastMessage,
+                  status: "success",
+                  content: fullContent,
+                }
+              }
+              return updatedMessages
+            })
+            setIsLoading(false)
+            
+            // Fetch the updated conversation to ensure we have all data
+            try {
+              const result = await conversationService.getConversation(conversationId)
+              setConversation(result.conversation)
+              setConversationId(result.conversation.id)
+            } catch (err) {
+              console.error("Error fetching conversation after streaming:", err)
+            }
+          },
+          onError: (error) => {
+            handleApiError(error)
+            setIsLoading(false)
+          }
+        }
+      )
+      
+    } catch (err: any) {
+      handleApiError(err)
+      setIsLoading(false)
+    }
+  }
+  
+  // Function to create a new conversation (non-streaming version)
   const createNewConversation = async (content: string) => {
     setIsLoading(true)
     setError(null)
@@ -120,7 +204,7 @@ export function Chat({
       setMessages(prev => [...prev, userMessage])
       
       // Add a pending bot message
-      const pendingBotMessage = createUiMessage("Assistant is thinking...", 'assistant', 'pending')
+      const pendingBotMessage = createUiMessage(thinkingMessage, 'assistant', 'pending')
       setTimeout(() => {
         setMessages(prev => [...prev, pendingBotMessage])
       }, 300)
@@ -162,7 +246,89 @@ export function Chat({
     }
   }
   
-  // Function to send a message to an existing conversation
+  // Function to send a streaming message to an existing conversation
+  const sendStreamingMessageToConversation = async (content: string) => {
+    if (!conversationId) {
+      createNewStreamingConversation(content)
+      return
+    }
+    
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      // Add user message to UI immediately
+      const userMessage = createUiMessage(content, 'user', 'success')
+      setMessages(prev => [...prev, userMessage])
+      
+      // Add a pending bot message that will be updated with streaming chunks
+      const pendingBotMessage = createUiMessage(thinkingMessage, 'assistant', 'pending')
+      setTimeout(() => {
+        setMessages(prev => [...prev, pendingBotMessage])
+      }, 300)
+      
+      await streamingService.sendStreamingMessage(
+        conversationId,
+        content,
+        {
+          onChunk: (chunk) => {
+            // Update the assistant message content as chunks arrive
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              const lastMessage = updatedMessages[updatedMessages.length - 1]
+              if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
+                if (lastMessage.content === thinkingMessage) {
+                  updatedMessages[updatedMessages.length - 1] = {
+                    ...lastMessage,
+                    content: chunk,
+                  }
+                } else {
+                  updatedMessages[updatedMessages.length - 1] = {
+                    ...lastMessage,
+                    content: lastMessage.content + chunk,
+                  }
+                }
+              }
+              return updatedMessages
+            })
+          },
+          onComplete: async (fullContent, conversationId) => {
+            // Finalize the response
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              const lastMessage = updatedMessages[updatedMessages.length - 1]
+              if (lastMessage && lastMessage.role === "assistant") {
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...lastMessage,
+                  status: "success",
+                  content: fullContent,
+                }
+              }
+              return updatedMessages
+            })
+            setIsLoading(false)
+            
+            // Fetch the updated conversation to ensure we have all messages
+            try {
+              const result = await conversationService.getConversation(conversationId)
+              setMessages(result.messages)
+            } catch (err) {
+              console.error("Error fetching conversation after streaming:", err)
+            }
+          },
+          onError: (error) => {
+            handleApiError(error)
+            setIsLoading(false)
+          }
+        }
+      )
+    } catch (err: any) {
+      handleApiError(err)
+      setIsLoading(false)
+    }
+  }
+  
+  // Function to send a message to an existing conversation (non-streaming)
   const sendMessageToConversation = async (content: string) => {
     if (!conversation && !demoMode) {
       createNewConversation(content)
@@ -178,7 +344,7 @@ export function Chat({
       setMessages(prev => [...prev, userMessage])
       
       // Add a pending bot message
-      const pendingBotMessage = createUiMessage("Assistant is thinking...", 'assistant', 'pending')
+      const pendingBotMessage = createUiMessage(thinkingMessage, 'assistant', 'pending')
       setTimeout(() => {
         setMessages(prev => [...prev, pendingBotMessage])
       }, 300)
@@ -224,10 +390,18 @@ export function Chat({
     
     if (demoMode) {
       sendMessageToConversation(content)
-    } else if (conversation) {
-      sendMessageToConversation(content)
+    } else if (enableStreaming) {
+      if (conversation) {
+        sendStreamingMessageToConversation(content)
+      } else {
+        createNewStreamingConversation(content)
+      }
     } else {
-      createNewConversation(content)
+      if (conversation) {
+        sendMessageToConversation(content)
+      } else {
+        createNewConversation(content)
+      }
     }
   }
   
@@ -235,6 +409,7 @@ export function Chat({
   const clearMessages = () => {
     setMessages([])
     setConversation(null)
+    setConversationId(null)
     setError(null)
   }
 
