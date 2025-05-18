@@ -29,7 +29,7 @@ export const pricingPlans: PricingPlan[] = [
     creditsPerDay: 0.50,
     creditsPerMonth: 5.00,
     features: [
-      "10 credits per day",
+      "0.50 credits per day",
       "Basic models only",
       "5MB file uploads",
       "Community support"
@@ -44,7 +44,7 @@ export const pricingPlans: PricingPlan[] = [
     creditsPerMonth: 20.00,
     popular: true,
     features: [
-      "50 credits per day",
+      "2 credits per day",
       "Access to advanced models",
       "50MB file uploads",
       "Email support",
@@ -59,7 +59,7 @@ export const pricingPlans: PricingPlan[] = [
     creditsPerDay: 10.00,
     creditsPerMonth: 100.00,
     features: [
-      "200 credits per day",
+      "10 credits per day",
       "Access to all models including GPT-4",
       "200MB file uploads",
       "Priority support",
