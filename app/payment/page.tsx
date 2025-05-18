@@ -61,6 +61,7 @@ export default function PaymentPage() {
     try {
       const subscriptionData: SubscriptionRequest = {
         userId,
+        planId,
         planName: plan.name,
         maxCreditsPerDay: plan.creditsPerDay,
         maxCreditsPerMonth: plan.creditsPerMonth

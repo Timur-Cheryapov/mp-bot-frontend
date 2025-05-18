@@ -96,6 +96,7 @@ export const planDetailsMap: Record<string, { name: string; creditsPerDay: numbe
  */
 export interface SubscriptionRequest {
   userId: string;
+  planId: string;
   planName: string;
   maxCreditsPerDay: number;
   maxCreditsPerMonth: number;
