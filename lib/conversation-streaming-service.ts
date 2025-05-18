@@ -81,34 +81,38 @@ export async function createStreamingConversation(
         // Decode the chunk
         const chunk = decoder.decode(value, { stream: true });
         
-        // Process SSE format (data: lines)
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-
-            // Skip "[DONE]" messages
-            if (data === '[DONE]') continue;
-
-            // Handle the conversationId event
-            if (!conversationId) {
-              // This is our initial conversation ID
-              conversationId = data;
-              continue;
+        // Split into SSE events
+        const events = chunk.split('\n\n').filter(e => e.trim());
+        
+        for (const event of events) {
+          // Parse event type and data
+          const eventLines = event.split('\n');
+          let eventType = '';
+          let eventData = '';
+          
+          for (const line of eventLines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.substring(7);
+            } else if (line.startsWith('data: ')) {
+              eventData = line.substring(6);
             }
-            
-            try {
-              // Extract the content from the SSE data line
-              const json = JSON.parse(data);
-              if (json.data.chunk) {
-                const content = json.data.chunk.kwargs.content;
-                fullContent += content;
-                // Pass the chunk to the callback
-                callbacks.onChunk(content);
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
-            }
+          }
+          
+          // Handle different event types
+          switch (eventType) {
+            case 'conversationId':
+              conversationId = eventData;
+              break;
+              
+            case 'chunk':
+              // The content is directly in the data field now
+              fullContent += eventData;
+              callbacks.onChunk(eventData);
+              break;
+              
+            case 'end':
+              // Stream has ended
+              break;
           }
         }
       }
@@ -188,26 +192,38 @@ export async function sendStreamingMessage(
         // Decode the chunk
         const chunk = decoder.decode(value, { stream: true });
         
-        // Process SSE format (data: lines)
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            // Skip "[DONE]" messages
-            if (line === 'data: [DONE]') continue;
-            
-            try {
-              // Extract the content from the SSE data line
-              const text = line.substring(6); // Remove 'data: ' prefix
-              const json = JSON.parse(text);
-              if (json.data.chunk) {
-                const content = json.data.chunk.kwargs.content;
-                fullContent += content;
-                // Pass the chunk to the callback
-                callbacks.onChunk(content);
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
+        // Split into SSE events
+        const events = chunk.split('\n\n').filter(e => e.trim());
+        
+        for (const event of events) {
+          // Parse event type and data
+          const eventLines = event.split('\n');
+          let eventType = '';
+          let eventData = '';
+          
+          for (const line of eventLines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.substring(7);
+            } else if (line.startsWith('data: ')) {
+              eventData = line.substring(6);
             }
+          }
+          
+          // Handle different event types
+          switch (eventType) {
+            case 'conversationId':
+              conversationId = eventData;
+              break;
+              
+            case 'chunk':
+              // The content is directly in the data field now
+              fullContent += eventData;
+              callbacks.onChunk(eventData);
+              break;
+              
+            case 'end':
+              // Stream has ended
+              break;
           }
         }
       }
