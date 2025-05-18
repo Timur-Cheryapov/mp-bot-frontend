@@ -14,6 +14,7 @@ export default function AuthPage() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("signin");
   const [isLoading, setIsLoading] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   
   // Form states
   const [signInData, setSignInData] = useState({
@@ -34,6 +35,10 @@ export default function AuthPage() {
     if (tab === "signup" || tab === "signin") {
       setActiveTab(tab);
     }
+    const redirect = searchParams.get("redirect");
+    if (redirect) {
+      setRedirectUrl(decodeURIComponent(redirect));
+    }
   }, [searchParams]);
 
   // Handle sign in form submission
@@ -49,7 +54,7 @@ export default function AuthPage() {
         notifyAuthStateChanged();
         
         // Redirect to confirmation page
-        router.push("/");
+        router.push(redirectUrl || "/");
       } else {
         alert(`Sign in failed: ${response.message || "Unknown error"}`);
       }
