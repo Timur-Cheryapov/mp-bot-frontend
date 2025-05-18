@@ -26,8 +26,8 @@ export const pricingPlans: PricingPlan[] = [
     name: "Free",
     description: "Get started with basic features",
     price: "$0",
-    creditsPerDay: 10,
-    creditsPerMonth: 200,
+    creditsPerDay: 0.50,
+    creditsPerMonth: 5.00,
     features: [
       "10 credits per day",
       "Basic models only",
@@ -40,8 +40,8 @@ export const pricingPlans: PricingPlan[] = [
     name: "Standard",
     description: "Perfect for regular usage",
     price: "$9.99/month",
-    creditsPerDay: 50,
-    creditsPerMonth: 1000,
+    creditsPerDay: 2.00,
+    creditsPerMonth: 20.00,
     popular: true,
     features: [
       "50 credits per day",
@@ -56,8 +56,8 @@ export const pricingPlans: PricingPlan[] = [
     name: "Premium",
     description: "For power users and professionals",
     price: "$29.99/month",
-    creditsPerDay: 200,
-    creditsPerMonth: 5000,
+    creditsPerDay: 10.00,
+    creditsPerMonth: 100.00,
     features: [
       "200 credits per day",
       "Access to all models including GPT-4",
@@ -76,18 +76,18 @@ export const pricingPlans: PricingPlan[] = [
 export const planDetailsMap: Record<string, { name: string; creditsPerDay: number; creditsPerMonth: number }> = {
   free: {
     name: "Free",
-    creditsPerDay: 10,
-    creditsPerMonth: 200
+    creditsPerDay: 0.50,
+    creditsPerMonth: 5.00
   },
   standard: {
     name: "Standard",
-    creditsPerDay: 50,
-    creditsPerMonth: 1000
+    creditsPerDay: 2.00,
+    creditsPerMonth: 20.00
   },
   premium: {
     name: "Premium",
-    creditsPerDay: 200,
-    creditsPerMonth: 5000
+    creditsPerDay: 10.00,
+    creditsPerMonth: 100.00
   }
 };
 
