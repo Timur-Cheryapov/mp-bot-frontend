@@ -105,9 +105,17 @@ export async function createStreamingConversation(
               break;
               
             case 'chunk':
-              // The content is directly in the data field now
-              fullContent += eventData;
-              callbacks.onChunk(eventData);
+              try {
+                // The content is now JSON-encoded to preserve newlines
+                const decodedContent = JSON.parse(eventData);
+                fullContent += decodedContent;
+                callbacks.onChunk(decodedContent);
+              } catch (e) {
+                console.error('Error parsing chunk:', e);
+                // Fallback to raw data if parsing fails
+                fullContent += eventData;
+                callbacks.onChunk(eventData);
+              }
               break;
               
             case 'end':
@@ -216,9 +224,17 @@ export async function sendStreamingMessage(
               break;
               
             case 'chunk':
-              // The content is directly in the data field now
-              fullContent += eventData;
-              callbacks.onChunk(eventData);
+              try {
+                // The content is now JSON-encoded to preserve newlines
+                const decodedContent = JSON.parse(eventData);
+                fullContent += decodedContent;
+                callbacks.onChunk(decodedContent);
+              } catch (e) {
+                console.error('Error parsing chunk:', e);
+                // Fallback to raw data if parsing fails
+                fullContent += eventData;
+                callbacks.onChunk(eventData);
+              }
               break;
               
             case 'end':

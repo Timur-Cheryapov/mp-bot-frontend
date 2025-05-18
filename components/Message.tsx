@@ -26,7 +26,7 @@ export function Message(props: ChatMessage) {
       )}>
         <Card 
           className={cn(
-            "px-4 py-3 shadow-sm text-sm sm:text-base break-words",
+            "px-4 py-3 shadow-sm text-sm sm:text-base break-words whitespace-pre-wrap",
             {
               "bg-primary text-primary-foreground rounded-tr-none": isUser,
               "bg-muted rounded-tl-none": !isUser && role === "assistant",
