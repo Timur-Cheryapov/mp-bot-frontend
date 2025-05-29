@@ -4,11 +4,23 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { checkAuthStatus, logout, notifyAuthStateChanged } from "@/lib/auth-service";
 import { fetchMetrics } from "@/lib/metrics-service";
 import { fetchUserPlan, fetchPlanUsage, UserPlan, PlanUsage } from "@/lib/plan-service";
+import { 
+  fetchApiKeys, 
+  saveApiKey, 
+  deleteApiKey, 
+  getAllServices, 
+  getServiceDisplayName,
+  MarketplaceService,
+  ApiKeyData 
+} from "@/lib/api-key-service";
 import { Progress } from "@/components/ui/progress";
+import { Eye, EyeOff, Trash2, Save, Key } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -40,6 +52,25 @@ export default function ProfilePage() {
   const [userPlan, setUserPlan] = useState<UserPlan | null>(null);
   const [planUsage, setPlanUsage] = useState<PlanUsage | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  
+  // API Keys state
+  const [apiKeys, setApiKeys] = useState<ApiKeyData[]>([]);
+  const [apiKeysLoading, setApiKeysLoading] = useState(false);
+  const [newApiKeys, setNewApiKeys] = useState<Record<MarketplaceService, string>>({
+    wildberries: '',
+    ozon: '',
+    yandexmarket: ''
+  });
+  const [savingApiKeys, setSavingApiKeys] = useState<Record<MarketplaceService, boolean>>({
+    wildberries: false,
+    ozon: false,
+    yandexmarket: false
+  });
+  const [deletingApiKeys, setDeletingApiKeys] = useState<Record<MarketplaceService, boolean>>({
+    wildberries: false,
+    ozon: false,
+    yandexmarket: false
+  });
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -50,9 +81,10 @@ export default function ProfilePage() {
         if (isAuthenticated && user) {
           setUser(user as UserProfile);
           setError(null);
-          // Fetch metrics and plan data once authenticated
+          // Fetch metrics, plan data, and API keys once authenticated
           fetchUserMetrics();
           fetchUserPlanData();
+          fetchUserApiKeys();
         } else {
           setUser(null);
           setError("Not authenticated. Please sign in.");
@@ -99,6 +131,81 @@ export default function ProfilePage() {
     } finally {
       setPlanLoading(false);
     }
+  };
+
+  const fetchUserApiKeys = async () => {
+    setApiKeysLoading(true);
+    try {
+      const result = await fetchApiKeys();
+      if (result.success && result.data) {
+        setApiKeys(result.data);
+      }
+    } catch (err) {
+      console.error("Error fetching API keys:", err);
+    } finally {
+      setApiKeysLoading(false);
+    }
+  };
+
+  const handleApiKeyChange = (service: MarketplaceService, value: string) => {
+    setNewApiKeys(prev => ({
+      ...prev,
+      [service]: value
+    }));
+  };
+
+  const handleSaveApiKey = async (service: MarketplaceService) => {
+    const apiKey = newApiKeys[service].trim();
+    if (!apiKey) {
+      setError(`Please enter a valid API key for ${getServiceDisplayName(service)}`);
+      return;
+    }
+
+    setSavingApiKeys(prev => ({ ...prev, [service]: true }));
+    try {
+      const result = await saveApiKey(service, apiKey);
+      if (result.success) {
+        // Clear the input
+        setNewApiKeys(prev => ({ ...prev, [service]: '' }));
+        // Refresh API keys list
+        await fetchUserApiKeys();
+        setError(null);
+      } else {
+        setError(result.error || `Failed to save ${getServiceDisplayName(service)} API key`);
+      }
+    } catch (err) {
+      console.error("Error saving API key:", err);
+      setError(`Failed to save ${getServiceDisplayName(service)} API key`);
+    } finally {
+      setSavingApiKeys(prev => ({ ...prev, [service]: false }));
+    }
+  };
+
+  const handleDeleteApiKey = async (service: MarketplaceService) => {
+    if (!confirm(`Are you sure you want to delete your ${getServiceDisplayName(service)} API key?`)) {
+      return;
+    }
+
+    setDeletingApiKeys(prev => ({ ...prev, [service]: true }));
+    try {
+      const result = await deleteApiKey(service);
+      if (result.success) {
+        // Refresh API keys list
+        await fetchUserApiKeys();
+        setError(null);
+      } else {
+        setError(result.error || `Failed to delete ${getServiceDisplayName(service)} API key`);
+      }
+    } catch (err) {
+      console.error("Error deleting API key:", err);
+      setError(`Failed to delete ${getServiceDisplayName(service)} API key`);
+    } finally {
+      setDeletingApiKeys(prev => ({ ...prev, [service]: false }));
+    }
+  };
+
+  const hasApiKey = (service: MarketplaceService): boolean => {
+    return apiKeys.some(key => key.service === service);
   };
 
   const handleLogout = async () => {
@@ -201,6 +308,114 @@ export default function ProfilePage() {
 
         {user && (
           <>
+            {/* API Keys Card */}
+            <Card className="shadow-lg border border-gray-200">
+              <CardHeader className="pb-0">
+                <CardTitle className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <Key className="h-6 w-6" />
+                  Marketplace API Keys
+                </CardTitle>
+              </CardHeader>
+              
+              <CardContent>
+                {apiKeysLoading ? (
+                  <div className="space-y-4">
+                    {getAllServices().map((service) => (
+                      <Skeleton key={service} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <p className="text-sm text-gray-600">
+                      Configure your marketplace API keys to enable integration with your e-commerce platforms.
+                    </p>
+                    
+                    {getAllServices().map((service) => {
+                      const hasKey = hasApiKey(service);
+                      const isLoading = savingApiKeys[service] || deletingApiKeys[service];
+                      
+                      return (
+                        <div key={service} className="border rounded-lg p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-lg font-medium text-gray-800">
+                                {getServiceDisplayName(service)}
+                              </h3>
+                              {hasKey && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                                  <Key className="h-3 w-3" />
+                                  Configured
+                                </div>
+                              )}
+                            </div>
+                            
+                            {hasKey && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteApiKey(service)}
+                                disabled={isLoading}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                {deletingApiKeys[service] ? (
+                                  "Deleting..."
+                                ) : (
+                                  <>
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Remove
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`${service}-key`} className="text-sm font-medium">
+                              {hasKey ? 'Update API Key' : 'Add API Key'}
+                            </Label>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <Input
+                                  id={`${service}-key`}
+                                  type="password"
+                                  placeholder={hasKey ? "Enter new API key to update" : `Enter your ${getServiceDisplayName(service)} API key`}
+                                  value={newApiKeys[service]}
+                                  onChange={(e) => handleApiKeyChange(service, e.target.value)}
+                                  disabled={isLoading}
+                                />
+                              </div>
+                              
+                              <Button
+                                onClick={() => handleSaveApiKey(service)}
+                                disabled={isLoading || !newApiKeys[service].trim()}
+                                size="sm"
+                                className="whitespace-nowrap"
+                              >
+                                {savingApiKeys[service] ? (
+                                  "Saving..."
+                                ) : (
+                                  <>
+                                    <Save className="h-4 w-4 mr-1" />
+                                    {hasKey ? 'Update' : 'Save'}
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                            
+                            {hasKey && (
+                              <p className="text-xs text-gray-500">
+                                Last updated: {formatDate(apiKeys.find(k => k.service === service)?.updated_at)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Plan Card */}
             <Card className="shadow-lg border border-gray-200">
               <CardHeader className="pb-0">
