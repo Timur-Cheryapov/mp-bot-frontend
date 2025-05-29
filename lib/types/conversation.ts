@@ -7,7 +7,7 @@ export type MessageStatus = 'pending' | 'success' | 'error';
 /**
  * The role of a participant in a conversation
  */
-export type MessageRole = 'user' | 'assistant';
+export type MessageRole = 'user' | 'assistant' | 'tool';
 
 /**
  * Simple message object for UI and API communication

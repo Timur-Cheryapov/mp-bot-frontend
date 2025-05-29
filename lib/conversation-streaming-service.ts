@@ -21,6 +21,8 @@ interface StreamCallbacks {
     conversationId: string
   ) => void;
   onError: (error: Error) => void;
+  onToolExecution?: (message: string, toolCalls: string[]) => void;
+  onToolComplete?: (message: string) => void;
 }
 
 /**
@@ -115,6 +117,40 @@ export async function createStreamingConversation(
                 // Fallback to raw data if parsing fails
                 fullContent += eventData;
                 callbacks.onChunk(eventData);
+              }
+              break;
+              
+            case 'tool_execution':
+              try {
+                const toolData = JSON.parse(eventData);
+                if (callbacks.onToolExecution) {
+                  callbacks.onToolExecution(toolData.message, toolData.toolCalls);
+                }
+              } catch (e) {
+                console.error('Error parsing tool_execution event:', e);
+              }
+              break;
+              
+            case 'tool_complete':
+              try {
+                const processData = JSON.parse(eventData);
+                if (callbacks.onToolComplete) {
+                  callbacks.onToolComplete(processData.message);
+                }
+              } catch (e) {
+                console.error('Error parsing tool_complete event:', e);
+              }
+              break;
+              
+            case 'error':
+              try {
+                const errorData = JSON.parse(eventData);
+                callbacks.onError(new Error(errorData.error));
+                return; // Stop processing on error
+              } catch (e) {
+                console.error('Error parsing error event:', e);
+                callbacks.onError(new Error('Unknown error occurred'));
+                return;
               }
               break;
               
@@ -239,6 +275,40 @@ export async function sendStreamingMessage(
                 // Fallback to raw data if parsing fails
                 fullContent += eventData;
                 callbacks.onChunk(eventData);
+              }
+              break;
+              
+            case 'tool_execution':
+              try {
+                const toolData = JSON.parse(eventData);
+                if (callbacks.onToolExecution) {
+                  callbacks.onToolExecution(toolData.message, toolData.toolCalls);
+                }
+              } catch (e) {
+                console.error('Error parsing tool_execution event:', e);
+              }
+              break;
+              
+            case 'tool_complete':
+              try {
+                const processData = JSON.parse(eventData);
+                if (callbacks.onToolComplete) {
+                  callbacks.onToolComplete(processData.message);
+                }
+              } catch (e) {
+                console.error('Error parsing tool_complete event:', e);
+              }
+              break;
+              
+            case 'error':
+              try {
+                const errorData = JSON.parse(eventData);
+                callbacks.onError(new Error(errorData.error));
+                return; // Stop processing on error
+              } catch (e) {
+                console.error('Error parsing error event:', e);
+                callbacks.onError(new Error('Unknown error occurred'));
+                return;
               }
               break;
               

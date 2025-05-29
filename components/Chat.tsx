@@ -158,6 +158,33 @@ export function Chat({
               return updatedMessages
             })
           },
+          onToolExecution: (message, toolCalls) => {
+            // Add a tool execution message showing which tools are being executed
+            const toolMessage = createUiMessage(
+              `${message}${toolCalls && toolCalls.length > 0 ? ` (${toolCalls.join(', ')})` : ''}`,
+              'tool',
+              'pending'
+            )
+            setMessages(prev => [...prev, toolMessage])
+          },
+          onToolComplete: (message) => {
+            // Update the last tool message to completed status
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              // Find the last tool message with pending status and update it
+              for (let i = updatedMessages.length - 1; i >= 0; i--) {
+                if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
+                  updatedMessages[i] = {
+                    ...updatedMessages[i],
+                    content: message,
+                    status: 'success'
+                  }
+                  break
+                }
+              }
+              return updatedMessages
+            })
+          },
           onComplete: async (fullContent, conversationId) => {
             // Finalize the response
             setMessages(prevMessages => {
@@ -184,6 +211,21 @@ export function Chat({
             }
           },
           onError: (error) => {
+            // Update any pending tool messages to error status
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              for (let i = updatedMessages.length - 1; i >= 0; i--) {
+                if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
+                  updatedMessages[i] = {
+                    ...updatedMessages[i],
+                    content: `Tool execution failed: ${error.message}`,
+                    status: 'error'
+                  }
+                  break
+                }
+              }
+              return updatedMessages
+            })
             handleApiError(error)
             setIsLoading(false)
           }
@@ -295,6 +337,33 @@ export function Chat({
               return updatedMessages
             })
           },
+          onToolExecution: (message, toolCalls) => {
+            // Add a tool execution message showing which tools are being executed
+            const toolMessage = createUiMessage(
+              `${message}${toolCalls && toolCalls.length > 0 ? ` (${toolCalls.join(', ')})` : ''}`,
+              'tool',
+              'pending'
+            )
+            setMessages(prev => [...prev, toolMessage])
+          },
+          onToolComplete: (message) => {
+            // Update the last tool message to completed status
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              // Find the last tool message with pending status and update it
+              for (let i = updatedMessages.length - 1; i >= 0; i--) {
+                if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
+                  updatedMessages[i] = {
+                    ...updatedMessages[i],
+                    content: message,
+                    status: 'success'
+                  }
+                  break
+                }
+              }
+              return updatedMessages
+            })
+          },
           onComplete: async (fullContent, conversationId) => {
             // Finalize the response
             setMessages(prevMessages => {
@@ -320,6 +389,21 @@ export function Chat({
             }
           },
           onError: (error) => {
+            // Update any pending tool messages to error status
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              for (let i = updatedMessages.length - 1; i >= 0; i--) {
+                if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
+                  updatedMessages[i] = {
+                    ...updatedMessages[i],
+                    content: `Tool execution failed: ${error.message}`,
+                    status: 'error'
+                  }
+                  break
+                }
+              }
+              return updatedMessages
+            })
             handleApiError(error)
             setIsLoading(false)
           }
