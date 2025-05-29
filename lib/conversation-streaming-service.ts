@@ -52,7 +52,7 @@ export async function createStreamingConversation(
       let errorMessage = 'Failed to create conversation';
       try {
         const errorData = await response.json();
-        errorMessage = errorData.message || errorMessage;
+        errorMessage = errorData.error || errorData.message || errorMessage;
       } catch (e) {
         errorMessage = response.statusText || errorMessage;
       }
@@ -129,10 +129,15 @@ export async function createStreamingConversation(
         throw new ApiError('No conversation ID returned', 500);
       }
 
-      await saveStreamResponse(conversationId, fullContent);
+      try {
+        await saveStreamResponse(conversationId, fullContent);
+        // Callback for completion
+        callbacks.onComplete(fullContent, conversationId || '');
+      } catch (saveError) {
+        callbacks.onError(saveError instanceof Error ? saveError : new Error(String(saveError)));
+        return;
+      }
       
-      // Callback for completion
-      callbacks.onComplete(fullContent, conversationId || '');
     } catch (error) {
       callbacks.onError(error instanceof Error ? error : new Error(String(error)));
       throw error;
@@ -172,7 +177,7 @@ export async function sendStreamingMessage(
       let errorMessage = 'Failed to send message';
       try {
         const errorData = await response.json();
-        errorMessage = errorData.message || errorMessage;
+        errorMessage = errorData.error || errorData.message || errorMessage;
       } catch (e) {
         errorMessage = response.statusText || errorMessage;
       }
@@ -244,10 +249,15 @@ export async function sendStreamingMessage(
         }
       }
 
-      await saveStreamResponse(conversationId, fullContent);
+      try {
+        await saveStreamResponse(conversationId, fullContent);
+        // Callback for completion
+        callbacks.onComplete(fullContent, conversationId);
+      } catch (saveError) {
+        callbacks.onError(saveError instanceof Error ? saveError : new Error(String(saveError)));
+        return;
+      }
       
-      // Callback for completion
-      callbacks.onComplete(fullContent, conversationId);
     } catch (error) {
       callbacks.onError(error instanceof Error ? error : new Error(String(error)));
       throw error;
@@ -283,7 +293,7 @@ export async function saveStreamResponse(
       let errorMessage = 'Failed to save streamed response';
       try {
         const errorData = await response.json();
-        errorMessage = errorData.message || errorMessage;
+        errorMessage = errorData.error || errorData.message || errorMessage;
       } catch (e) {
         errorMessage = response.statusText || errorMessage;
       }

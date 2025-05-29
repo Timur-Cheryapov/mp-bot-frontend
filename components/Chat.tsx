@@ -78,6 +78,8 @@ export function Chat({
   
   // Function to handle API errors
   const handleApiError = (err: any) => {
+    console.error("API Error:", err); // Add logging for debugging
+    
     if (err.status === 401) {
       setShowAuthDialog(true)
       setError("Authentication required")
@@ -96,7 +98,8 @@ export function Chat({
         return updatedMessages
       })
     } else {
-      setError(err.message || 'An error occurred')
+      const errorMessage = err.message || 'An error occurred'
+      setError(errorMessage)
       
       // Update the pending message to show error
       setMessages(prevMessages => {
@@ -106,7 +109,7 @@ export function Chat({
           updatedMessages[updatedMessages.length - 1] = {
             ...lastMessage,
             status: "error",
-            content: "Failed to get response. Please try again. Error: " + error,
+            content: `Failed to get response. ${errorMessage}`,
           }
         }
         return updatedMessages
