@@ -185,30 +185,17 @@ export function Chat({
               return updatedMessages
             })
           },
-          onComplete: async (fullContent, conversationId) => {
-            // Finalize the response
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              const lastMessage = updatedMessages[updatedMessages.length - 1]
-              if (lastMessage && lastMessage.role === "assistant") {
-                updatedMessages[updatedMessages.length - 1] = {
-                  ...lastMessage,
-                  status: "success",
-                  content: fullContent,
-                }
-              }
-              return updatedMessages
-            })
-            setIsLoading(false)
-            
+          onComplete: async (conversationId) => {
             // Fetch the updated conversation to ensure we have all data
             try {
               const result = await conversationService.getConversation(conversationId)
               setConversation(result.conversation)
               setConversationId(result.conversation.id)
+              setMessages(result.messages)
             } catch (err) {
               console.error("Error fetching conversation after streaming:", err)
             }
+            setIsLoading(false)
           },
           onError: (error) => {
             // Update any pending tool messages to error status
@@ -364,22 +351,7 @@ export function Chat({
               return updatedMessages
             })
           },
-          onComplete: async (fullContent, conversationId) => {
-            // Finalize the response
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              const lastMessage = updatedMessages[updatedMessages.length - 1]
-              if (lastMessage && lastMessage.role === "assistant") {
-                updatedMessages[updatedMessages.length - 1] = {
-                  ...lastMessage,
-                  status: "success",
-                  content: fullContent,
-                }
-              }
-              return updatedMessages
-            })
-            setIsLoading(false)
-            
+          onComplete: async (conversationId) => {
             // Fetch the updated conversation to ensure we have all messages
             try {
               const result = await conversationService.getConversation(conversationId)
@@ -387,6 +359,7 @@ export function Chat({
             } catch (err) {
               console.error("Error fetching conversation after streaming:", err)
             }
+            setIsLoading(false)
           },
           onError: (error) => {
             // Update any pending tool messages to error status

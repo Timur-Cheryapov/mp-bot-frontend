@@ -17,7 +17,6 @@ export class ApiError extends Error {
 interface StreamCallbacks {
   onChunk: (chunk: string) => void;
   onComplete: (
-    fullContent: string,
     conversationId: string
   ) => void;
   onError: (error: Error) => void;
@@ -68,7 +67,6 @@ export async function createStreamingConversation(
     }
 
     const decoder = new TextDecoder();
-    let fullContent = '';
     let conversationId: string | null = null;
 
     // Process the stream chunks
@@ -110,12 +108,9 @@ export async function createStreamingConversation(
               try {
                 // The content is now JSON-encoded to preserve newlines
                 const decodedContent = JSON.parse(eventData);
-                fullContent += decodedContent;
                 callbacks.onChunk(decodedContent);
               } catch (e) {
                 console.error('Error parsing chunk:', e);
-                // Fallback to raw data if parsing fails
-                fullContent += eventData;
                 callbacks.onChunk(eventData);
               }
               break;
@@ -166,9 +161,8 @@ export async function createStreamingConversation(
       }
 
       try {
-        await saveStreamResponse(conversationId, fullContent);
         // Callback for completion
-        callbacks.onComplete(fullContent, conversationId || '');
+        callbacks.onComplete(conversationId || '');
       } catch (saveError) {
         callbacks.onError(saveError instanceof Error ? saveError : new Error(String(saveError)));
         return;
@@ -227,7 +221,6 @@ export async function sendStreamingMessage(
     }
 
     const decoder = new TextDecoder();
-    let fullContent = '';
 
     // Process the stream chunks
     try {
@@ -268,12 +261,9 @@ export async function sendStreamingMessage(
               try {
                 // The content is now JSON-encoded to preserve newlines
                 const decodedContent = JSON.parse(eventData);
-                fullContent += decodedContent;
                 callbacks.onChunk(decodedContent);
               } catch (e) {
                 console.error('Error parsing chunk:', e);
-                // Fallback to raw data if parsing fails
-                fullContent += eventData;
                 callbacks.onChunk(eventData);
               }
               break;
@@ -320,9 +310,8 @@ export async function sendStreamingMessage(
       }
 
       try {
-        await saveStreamResponse(conversationId, fullContent);
         // Callback for completion
-        callbacks.onComplete(fullContent, conversationId);
+        callbacks.onComplete(conversationId);
       } catch (saveError) {
         callbacks.onError(saveError instanceof Error ? saveError : new Error(String(saveError)));
         return;
@@ -337,42 +326,5 @@ export async function sendStreamingMessage(
       throw error;
     }
     throw new ApiError('Failed to send streaming message', 500);
-  }
-}
-
-/**
- * Saves the completed conversation after streaming ends
- */
-export async function saveStreamResponse(
-  conversationId: string,
-  content: string
-): Promise<void> {
-  try {
-    const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/${conversationId}/save-stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': token
-      },
-      body: JSON.stringify({ content }),
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Failed to save streamed response';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch (e) {
-        errorMessage = response.statusText || errorMessage;
-      }
-      throw new ApiError(errorMessage, response.status);
-    }
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    throw new ApiError('Failed to save streamed response', 500);
   }
 }

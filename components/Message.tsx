@@ -4,7 +4,7 @@ import React from "react"
 import { cn } from "@/lib/utils"
 import { Card } from "@/components/ui/card"
 import { ChatMessage } from "@/lib/types/conversation"
-import { Loader2, Settings, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, Wrench } from "lucide-react"
 
 export function Message(props: ChatMessage) {
   const { content, role, status, timestamp } = props
@@ -18,10 +18,8 @@ export function Message(props: ChatMessage) {
         return <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
       case "success":
         return <CheckCircle2 className="h-3 w-3 text-gray-500" />
-      case "error":
-        return <XCircle className="h-3 w-3 text-gray-500" />
       default:
-        return <Settings className="h-3 w-3 text-gray-500" />
+        return <XCircle className="h-3 w-3 text-gray-500" />
     }
   }
   
@@ -49,17 +47,7 @@ export function Message(props: ChatMessage) {
             }
           )}
         >
-          {isTool ? (
-            <div className="flex items-center gap-2">
-              {getToolIcon()}
-              <span className="text-xs font-medium text-gray-500">
-                {status === "pending" ? "Executing" : status === "success" ? "Completed" : "Failed"}
-              </span>
-              <span className="text-sm sm:text-base">{content}</span>
-            </div>
-          ) : (
-            content
-          )}
+          {content}
         </Card>
         
         <div className={cn(
@@ -79,6 +67,16 @@ export function Message(props: ChatMessage) {
                 <span className="text-destructive">!</span>
               )}
             </div>
+          )}
+          {isTool && (
+            <>
+              <div className="ml-2">
+                {<Wrench className="h-3 w-3 text-gray-500" />}
+              </div>
+              <div className="ml-2">
+                {getToolIcon()}
+              </div>
+            </>
           )}
         </div>
       </div>
