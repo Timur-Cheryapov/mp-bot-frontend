@@ -73,6 +73,8 @@ export function Chat({
   useEffect(() => {
     if (conversationId && !demoMode) {
       window.history.replaceState({}, '', `/chat/${conversationId}`)
+    } else if (!conversationId && !demoMode) {
+      window.history.replaceState({}, '', '/chat')
     }
   }, [conversationId, demoMode])
   
@@ -155,6 +157,7 @@ export function Chat({
               }
             },
             onToolComplete: (toolMessages) => {
+              setMessages(prevMessages => clearThinkingMessage(prevMessages))
               for (const message of toolMessages.reverse()) {
                 setMessages(prevMessages => 
                   updateLastMessage(prevMessages, 'tool', 'pending', {
