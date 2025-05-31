@@ -158,32 +158,36 @@ export function Chat({
               return updatedMessages
             })
           },
-          onToolExecution: (message, toolCalls) => {
+          onToolExecution: (messages) => {
             // Add a tool execution message showing which tools are being executed
-            const toolMessage = createUiMessage(
-              `${message}${toolCalls && toolCalls.length > 0 ? ` (${toolCalls.join(', ')})` : ''}`,
+            for (const message of messages) {
+              const toolMessage = createUiMessage(
+                `${message.message} (${message.toolName})`,
               'tool',
               'pending'
-            )
-            setMessages(prev => [...prev, toolMessage])
+              )
+              setMessages(prev => [...prev, toolMessage])
+            }
           },
-          onToolComplete: (message) => {
+          onToolComplete: (messages) => {
             // Update the last tool message to completed status
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              // Find the last tool message with pending status and update it
-              for (let i = updatedMessages.length - 1; i >= 0; i--) {
-                if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
-                  updatedMessages[i] = {
-                    ...updatedMessages[i],
-                    content: message,
-                    status: 'success'
+            for (const message of messages.reverse()) {
+              setMessages(prevMessages => {
+                const updatedMessages = [...prevMessages]
+                // Find the last tool message with pending status and update it
+                for (let i = updatedMessages.length - 1; i >= 0; i--) {
+                  if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
+                    updatedMessages[i] = {
+                      ...updatedMessages[i],
+                      content: message.message,
+                      status: message.status
+                    }
+                    break
                   }
-                  break
                 }
-              }
-              return updatedMessages
-            })
+                return updatedMessages
+              })
+            }
           },
           onComplete: async (conversationId) => {
             // Fetch the updated conversation to ensure we have all data
@@ -324,32 +328,49 @@ export function Chat({
               return updatedMessages
             })
           },
-          onToolExecution: (message, toolCalls) => {
+          onToolExecution: (messagesResponse) => {
             // Add a tool execution message showing which tools are being executed
-            const toolMessage = createUiMessage(
-              `${message}${toolCalls && toolCalls.length > 0 ? ` (${toolCalls.join(', ')})` : ''}`,
-              'tool',
-              'pending'
-            )
-            setMessages(prev => [...prev, toolMessage])
-          },
-          onToolComplete: (message) => {
-            // Update the last tool message to completed status
             setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages]
+              const lastMessage = updatedMessages[updatedMessages.length - 1]
+              if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
+                if (lastMessage.content === thinkingMessage) {
+                  updatedMessages[updatedMessages.length - 1] = {
+                    ...lastMessage,
+                    content: '',
+                  }
+                }
+              }
+              return updatedMessages
+            })
+            for (const message of messagesResponse) {
+              const toolMessage = createUiMessage(
+                `${message.message} (${message.toolName})`,
+                'tool',
+                'pending'
+              )
+              setMessages(prev => [...prev, toolMessage])
+            }
+          },
+          onToolComplete: (messagesResponse) => {
+            // Update the last tool message to completed status
+            for (const message of messagesResponse.reverse()) {
+              setMessages(prevMessages => {
               const updatedMessages = [...prevMessages]
               // Find the last tool message with pending status and update it
               for (let i = updatedMessages.length - 1; i >= 0; i--) {
                 if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
                   updatedMessages[i] = {
                     ...updatedMessages[i],
-                    content: message,
-                    status: 'success'
+                    content: message.message,
+                    status: message.status
                   }
                   break
                 }
               }
-              return updatedMessages
-            })
+                return updatedMessages
+              })
+            }
           },
           onComplete: async (conversationId) => {
             // Fetch the updated conversation to ensure we have all messages

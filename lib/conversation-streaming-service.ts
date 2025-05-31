@@ -1,4 +1,5 @@
 import { fetchCsrfToken } from './auth-service';
+import { MessageStatus } from './types/conversation';
 
 // Define the base API URL for conversation service
 const API_BASE_URL = 'http://localhost:3001/api/conversation';
@@ -20,8 +21,19 @@ interface StreamCallbacks {
     conversationId: string
   ) => void;
   onError: (error: Error) => void;
-  onToolExecution?: (message: string, toolCalls: string[]) => void;
-  onToolComplete?: (message: string) => void;
+  onToolExecution?: (messages: ToolExecutionEvent[]) => void;
+  onToolComplete?: (messages: ToolCompleteEvent[]) => void;
+}
+
+type ToolExecutionEvent = {
+  message: string;
+  toolName: string;
+}
+
+type ToolCompleteEvent = {
+  message: string;
+  toolName: string;
+  status: MessageStatus;
 }
 
 /**
@@ -117,9 +129,9 @@ export async function createStreamingConversation(
               
             case 'tool_execution':
               try {
-                const toolData = JSON.parse(eventData);
+                const toolData: ToolExecutionEvent[] = JSON.parse(eventData);
                 if (callbacks.onToolExecution) {
-                  callbacks.onToolExecution(toolData.message, toolData.toolCalls);
+                  callbacks.onToolExecution(toolData);
                 }
               } catch (e) {
                 console.error('Error parsing tool_execution event:', e);
@@ -128,9 +140,9 @@ export async function createStreamingConversation(
               
             case 'tool_complete':
               try {
-                const processData = JSON.parse(eventData);
+                const processData: ToolCompleteEvent[] = JSON.parse(eventData);
                 if (callbacks.onToolComplete) {
-                  callbacks.onToolComplete(processData.message);
+                  callbacks.onToolComplete(processData);
                 }
               } catch (e) {
                 console.error('Error parsing tool_complete event:', e);
@@ -270,9 +282,9 @@ export async function sendStreamingMessage(
               
             case 'tool_execution':
               try {
-                const toolData = JSON.parse(eventData);
+                const toolData: ToolExecutionEvent[] = JSON.parse(eventData);
                 if (callbacks.onToolExecution) {
-                  callbacks.onToolExecution(toolData.message, toolData.toolCalls);
+                  callbacks.onToolExecution(toolData);
                 }
               } catch (e) {
                 console.error('Error parsing tool_execution event:', e);
@@ -281,9 +293,9 @@ export async function sendStreamingMessage(
               
             case 'tool_complete':
               try {
-                const processData = JSON.parse(eventData);
+                const processData: ToolCompleteEvent[] = JSON.parse(eventData);
                 if (callbacks.onToolComplete) {
-                  callbacks.onToolComplete(processData.message);
+                  callbacks.onToolComplete(processData);
                 }
               } catch (e) {
                 console.error('Error parsing tool_complete event:', e);

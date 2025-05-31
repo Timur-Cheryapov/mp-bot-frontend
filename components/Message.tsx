@@ -10,6 +10,11 @@ export function Message(props: ChatMessage) {
   const { content, role, status, timestamp } = props
   const isUser = role === "user"
   const isTool = role === "tool"
+
+  // If the message is empty, don't render it
+  if (!content) {
+    return null
+  }
   
   // Icon for tool messages based on status - all in grayscale
   const getToolIcon = () => {
