@@ -91,7 +91,7 @@ export async function sendStreamingMessage(
 ): Promise<void> {
   const isNewConversation = !conversationId;
   const endpoint = isNewConversation 
-    ? `${API_BASE_URL}/new`
+    ? `${API_BASE_URL}/`
     : `${API_BASE_URL}/${conversationId}`;
   
   await streamMessage(endpoint, message, callbacks, systemPrompt, isNewConversation);
