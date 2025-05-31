@@ -6,13 +6,20 @@ import { ChatHeader } from "@/components/ChatHeader"
 import { ChatBody } from "@/components/ChatBody"
 import { ChatFooter } from "@/components/ChatFooter"
 import { ChatMessage, Conversation } from "@/lib/types/conversation"
-import { createUiMessage } from "@/lib/utils/converters"
+import {
+  THINKING_MESSAGE,
+  PENDING_MESSAGE_DELAY,
+  createUiMessage,
+  updateLastMessage,
+  updateAssistantMessageWithChunk,
+  clearThinkingMessage,
+  createErrorMessage,
+  isAuthError
+} from "@/lib/utils/chat-helpers"
 import * as conversationService from "@/lib/conversation-service"
 import * as streamingService from "@/lib/conversation-streaming-service" 
 import { useParams } from "next/navigation"
 import { AuthRequiredDialog } from "@/components/AuthRequiredDialog"
-
-const thinkingMessage = "Assistant is thinking..."
 
 interface ChatProps {
   initialMessages?: ChatMessage[]
@@ -54,14 +61,7 @@ export function Chat({
         }
       } catch (err: any) {
         console.error("Error during initialization:", err)
-        
-        if (err.status === 401) {
-          setShowAuthDialog(true)
-          setError("Authentication required")
-        } else {
-          setError("Failed to load conversation")
-        }
-        
+        handleApiError(err)
         setIsLoading(false)
       }
     }
@@ -78,340 +78,132 @@ export function Chat({
   
   // Function to handle API errors
   const handleApiError = (err: any) => {
-    console.error("API Error:", err); // Add logging for debugging
+    console.error("API Error:", err)
     
-    if (err.status === 401) {
+    if (isAuthError(err)) {
       setShowAuthDialog(true)
       setError("Authentication required")
-      
-      // Update the pending message to show auth error
-      setMessages(prevMessages => {
-        const updatedMessages = [...prevMessages]
-        const lastMessage = updatedMessages[updatedMessages.length - 1]
-        if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-          updatedMessages[updatedMessages.length - 1] = {
-            ...lastMessage,
-            status: "error",
-            content: "Authentication required. Please sign in to continue.",
-          }
-        }
-        return updatedMessages
-      })
     } else {
       const errorMessage = err.message || 'An error occurred'
       setError(errorMessage)
-      
-      // Update the pending message to show error
-      setMessages(prevMessages => {
-        const updatedMessages = [...prevMessages]
-        const lastMessage = updatedMessages[updatedMessages.length - 1]
-        if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-          updatedMessages[updatedMessages.length - 1] = {
-            ...lastMessage,
-            status: "error",
-            content: `Failed to get response. ${errorMessage}`,
-          }
-        }
-        return updatedMessages
-      })
     }
-  }
-  
-  // Function to create a new conversation with streaming
-  const createNewStreamingConversation = async (content: string) => {
-    setIsLoading(true)
-    setError(null)
     
-    try {
-      // Add user message to UI immediately
-      const userMessage = createUiMessage(content, 'user', 'success')
-      setMessages(prev => [...prev, userMessage])
-      
-      // Add a pending bot message that will be updated with streaming chunks
-      const pendingBotMessage = createUiMessage(thinkingMessage, 'assistant', 'pending')
-      setTimeout(() => {
-        setMessages(prev => [...prev, pendingBotMessage])
-      }, 300)
-      
-      await streamingService.createStreamingConversation(
-        content,
-        systemPrompt,
-        {
-          onChunk: (chunk) => {
-            // Update the assistant message content as chunks arrive
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              const lastMessage = updatedMessages[updatedMessages.length - 1]
-              if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-                if (lastMessage.content === thinkingMessage) {
-                  updatedMessages[updatedMessages.length - 1] = {
-                    ...lastMessage,
-                    content: chunk,
-                  }
-                } else {
-                  updatedMessages[updatedMessages.length - 1] = {
-                    ...lastMessage,
-                    content: lastMessage.content + chunk,
-                  }
-                }
-              }
-              return updatedMessages
-            })
-          },
-          onToolExecution: (messages) => {
-            // Add a tool execution message showing which tools are being executed
-            for (const message of messages) {
-              const toolMessage = createUiMessage(
-                `${message.message} (${message.toolName})`,
-              'tool',
-              'pending'
-              )
-              setMessages(prev => [...prev, toolMessage])
-            }
-          },
-          onToolComplete: (messages) => {
-            // Update the last tool message to completed status
-            for (const message of messages.reverse()) {
-              setMessages(prevMessages => {
-                const updatedMessages = [...prevMessages]
-                // Find the last tool message with pending status and update it
-                for (let i = updatedMessages.length - 1; i >= 0; i--) {
-                  if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
-                    updatedMessages[i] = {
-                      ...updatedMessages[i],
-                      content: message.message,
-                      status: message.status
-                    }
-                    break
-                  }
-                }
-                return updatedMessages
-              })
-            }
-          },
-          onComplete: async (conversationId) => {
-            // Fetch the updated conversation to ensure we have all data
-            try {
-              const result = await conversationService.getConversation(conversationId)
-              setConversation(result.conversation)
-              setConversationId(result.conversation.id)
-              setMessages(result.messages)
-            } catch (err) {
-              console.error("Error fetching conversation after streaming:", err)
-            }
-            setIsLoading(false)
-          },
-          onError: (error) => {
-            // Update any pending tool messages to error status
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              for (let i = updatedMessages.length - 1; i >= 0; i--) {
-                if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
-                  updatedMessages[i] = {
-                    ...updatedMessages[i],
-                    content: `Tool execution failed: ${error.message}`,
-                    status: 'error'
-                  }
-                  break
-                }
-              }
-              return updatedMessages
-            })
-            handleApiError(error)
-            setIsLoading(false)
-          }
-        }
-      )
-      
-    } catch (err: any) {
-      handleApiError(err)
-      setIsLoading(false)
-    }
+    // Update the pending message to show error
+    setMessages(prevMessages => 
+      updateLastMessage(prevMessages, "assistant", "pending", {
+        status: "error",
+        content: createErrorMessage(err),
+      })
+    )
   }
-  
-  // Function to create a new conversation (non-streaming version)
+
+  // Function to simulate demo mode response
+  const simulateDemoResponse = (userContent: string) => {
+    setTimeout(() => {
+      setMessages(prevMessages => 
+        updateLastMessage(prevMessages, "assistant", "pending", {
+          status: "success",
+          content: `I'm in demo mode. You said: "${userContent}"`,
+        })
+      )
+      setIsLoading(false)
+    }, 1500)
+  }
+
+  // Function to add user message and pending assistant message
+  const addInitialMessages = (content: string) => {
+    // Add user message immediately
+    const userMessage = createUiMessage(content, 'user', 'success')
+    setMessages(prev => [...prev, userMessage])
+    
+    // Add pending assistant message after delay
+    const pendingBotMessage = createUiMessage(THINKING_MESSAGE, 'assistant', 'pending')
+    setTimeout(() => {
+      setMessages(prev => [...prev, pendingBotMessage])
+    }, PENDING_MESSAGE_DELAY)
+  }
+
+  // Function to create a new conversation
   const createNewConversation = async (content: string) => {
     setIsLoading(true)
     setError(null)
     
-    try {
-      // Add user message to UI immediately
-      const userMessage = createUiMessage(content, 'user', 'success')
-      setMessages(prev => [...prev, userMessage])
-      
-      // Add a pending bot message
-      const pendingBotMessage = createUiMessage(thinkingMessage, 'assistant', 'pending')
-      setTimeout(() => {
-        setMessages(prev => [...prev, pendingBotMessage])
-      }, 300)
-      
-      if (demoMode) {
-        // Simulate API response in demo mode
-        setTimeout(() => {
-          setMessages(prevMessages => {
-            const updatedMessages = [...prevMessages];
-            const lastMessage = updatedMessages[updatedMessages.length - 1];
-            if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-              updatedMessages[updatedMessages.length - 1] = {
-                ...lastMessage,
-                status: "success",
-                content: `I'm in demo mode. You said: "${content}"`,
-              };
-            }
-            return updatedMessages;
-          });
-          setIsLoading(false);
-        }, 1500);
-        return;
-      }
-      
-      // Use the conversation service to create a new conversation
-      const result = await conversationService.createConversation(
-        content,
-        systemPrompt,
-      );
-      
-      setConversation(result.conversation);
-      setConversationId(result.conversation.id);
-      setMessages(result.messages);
-      
-    } catch (err: any) {
-      handleApiError(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-  
-  // Function to send a streaming message to an existing conversation
-  const sendStreamingMessageToConversation = async (content: string) => {
-    if (!conversationId) {
-      createNewStreamingConversation(content)
+    addInitialMessages(content)
+    
+    if (demoMode) {
+      simulateDemoResponse(content)
       return
     }
     
-    setIsLoading(true)
-    setError(null)
-    
     try {
-      // Add user message to UI immediately
-      const userMessage = createUiMessage(content, 'user', 'success')
-      setMessages(prev => [...prev, userMessage])
-      
-      // Add a pending bot message that will be updated with streaming chunks
-      const pendingBotMessage = createUiMessage(thinkingMessage, 'assistant', 'pending')
-      setTimeout(() => {
-        setMessages(prev => [...prev, pendingBotMessage])
-      }, 300)
-      
-      await streamingService.sendStreamingMessage(
-        conversationId,
-        content,
-        {
-          onChunk: (chunk) => {
-            // Update the assistant message content as chunks arrive
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              const lastMessage = updatedMessages[updatedMessages.length - 1]
-              if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-                if (lastMessage.content === thinkingMessage) {
-                  updatedMessages[updatedMessages.length - 1] = {
-                    ...lastMessage,
-                    content: chunk,
-                  }
-                } else {
-                  updatedMessages[updatedMessages.length - 1] = {
-                    ...lastMessage,
-                    content: lastMessage.content + chunk,
-                  }
-                }
+      if (enableStreaming) {
+        await streamingService.createStreamingConversation(
+          content,
+          systemPrompt,
+          {
+            onChunk: (chunk) => {
+              setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
+            },
+            onToolExecution: (toolMessages) => {
+              for (const message of toolMessages) {
+                const toolMessage = createUiMessage(
+                  `${message.message} (${message.toolName})`,
+                  'tool',
+                  'pending'
+                )
+                setMessages(prev => [...prev, toolMessage])
               }
-              return updatedMessages
-            })
-          },
-          onToolExecution: (messagesResponse) => {
-            // Add a tool execution message showing which tools are being executed
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              const lastMessage = updatedMessages[updatedMessages.length - 1]
-              if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-                if (lastMessage.content === thinkingMessage) {
-                  updatedMessages[updatedMessages.length - 1] = {
-                    ...lastMessage,
-                    content: '',
-                  }
-                }
-              }
-              return updatedMessages
-            })
-            for (const message of messagesResponse) {
-              const toolMessage = createUiMessage(
-                `${message.message} (${message.toolName})`,
-                'tool',
-                'pending'
-              )
-              setMessages(prev => [...prev, toolMessage])
-            }
-          },
-          onToolComplete: (messagesResponse) => {
-            // Update the last tool message to completed status
-            for (const message of messagesResponse.reverse()) {
-              setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              // Find the last tool message with pending status and update it
-              for (let i = updatedMessages.length - 1; i >= 0; i--) {
-                if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
-                  updatedMessages[i] = {
-                    ...updatedMessages[i],
+            },
+            onToolComplete: (toolMessages) => {
+              for (const message of toolMessages.reverse()) {
+                setMessages(prevMessages => 
+                  updateLastMessage(prevMessages, 'tool', 'pending', {
                     content: message.message,
                     status: message.status
-                  }
-                  break
-                }
+                  })
+                )
               }
-                return updatedMessages
-              })
-            }
-          },
-          onComplete: async (conversationId) => {
-            // Fetch the updated conversation to ensure we have all messages
-            try {
-              const result = await conversationService.getConversation(conversationId)
-              setMessages(result.messages)
-            } catch (err) {
-              console.error("Error fetching conversation after streaming:", err)
-            }
-            setIsLoading(false)
-          },
-          onError: (error) => {
-            // Update any pending tool messages to error status
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              for (let i = updatedMessages.length - 1; i >= 0; i--) {
-                if (updatedMessages[i].role === 'tool' && updatedMessages[i].status === 'pending') {
-                  updatedMessages[i] = {
-                    ...updatedMessages[i],
-                    content: `Tool execution failed: ${error.message}`,
-                    status: 'error'
-                  }
-                  break
-                }
+            },
+            onComplete: async (newConversationId) => {
+              try {
+                const result = await conversationService.getConversation(newConversationId)
+                setConversation(result.conversation)
+                setConversationId(result.conversation.id)
+                setMessages(result.messages)
+              } catch (err) {
+                console.error("Error fetching conversation after streaming:", err)
               }
-              return updatedMessages
-            })
-            handleApiError(error)
-            setIsLoading(false)
+              setIsLoading(false)
+            },
+            onError: (error) => {
+              setMessages(prevMessages => 
+                updateLastMessage(prevMessages, 'tool', 'pending', {
+                  content: `Tool execution failed: ${error.message}`,
+                  status: 'error'
+                })
+              )
+              handleApiError(error)
+              setIsLoading(false)
+            }
           }
-        }
-      )
+        )
+      } else {
+        // Non-streaming version
+        const result = await conversationService.createConversation(content, systemPrompt)
+        setConversation(result.conversation)
+        setConversationId(result.conversation.id)
+        setMessages(result.messages)
+        setIsLoading(false)
+      }
     } catch (err: any) {
       handleApiError(err)
       setIsLoading(false)
     }
   }
   
-  // Function to send a message to an existing conversation (non-streaming)
+  // Function to send a message to an existing conversation
   const sendMessageToConversation = async (content: string) => {
-    if (!conversation && !demoMode) {
+    if (!conversationId && !demoMode) {
       createNewConversation(content)
       return
     }
@@ -419,48 +211,72 @@ export function Chat({
     setIsLoading(true)
     setError(null)
     
-    try {
-      // Add user message to UI immediately
-      const userMessage = createUiMessage(content, 'user', 'success')
-      setMessages(prev => [...prev, userMessage])
-      
-      // Add a pending bot message
-      const pendingBotMessage = createUiMessage(thinkingMessage, 'assistant', 'pending')
-      setTimeout(() => {
-        setMessages(prev => [...prev, pendingBotMessage])
-      }, 300)
-      
-      if (demoMode) {
-        // Simulate API response in demo mode
-        setTimeout(() => {
-          setMessages(prevMessages => {
-            const updatedMessages = [...prevMessages];
-            const lastMessage = updatedMessages[updatedMessages.length - 1];
-            if (lastMessage && lastMessage.role === "assistant" && lastMessage.status === "pending") {
-              updatedMessages[updatedMessages.length - 1] = {
-                ...lastMessage,
-                status: "success",
-                content: `I'm in demo mode. You said: "${content}"`,
-              };
-            }
-            return updatedMessages;
-          });
-          setIsLoading(false);
-        }, 1500);
-        return;
-      }
+    addInitialMessages(content)
+    
+    if (demoMode) {
+      simulateDemoResponse(content)
+      return
+    }
 
-      // Use the conversation service to send a message to an existing conversation
-      const result = await conversationService.sendMessage(
-        conversation!.id,
-        content,
-      );
-      
-      setMessages(result.messages);
-      
+    try {
+      if (enableStreaming) {
+        await streamingService.sendStreamingMessage(
+          conversationId!,
+          content,
+          {
+            onChunk: (chunk) => {
+              setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
+            },
+            onToolExecution: (toolMessages) => {
+              setMessages(prevMessages => clearThinkingMessage(prevMessages))
+              for (const message of toolMessages) {
+                const toolMessage = createUiMessage(
+                  `${message.message} (${message.toolName})`,
+                  'tool',
+                  'pending'
+                )
+                setMessages(prev => [...prev, toolMessage])
+              }
+            },
+            onToolComplete: (toolMessages) => {
+              for (const message of toolMessages.reverse()) {
+                setMessages(prevMessages => 
+                  updateLastMessage(prevMessages, 'tool', 'pending', {
+                    content: message.message,
+                    status: message.status
+                  })
+                )
+              }
+            },
+            onComplete: async (updatedConversationId) => {
+              try {
+                const result = await conversationService.getConversation(updatedConversationId)
+                setMessages(result.messages)
+              } catch (err) {
+                console.error("Error fetching conversation after streaming:", err)
+              }
+              setIsLoading(false)
+            },
+            onError: (error) => {
+              setMessages(prevMessages => 
+                updateLastMessage(prevMessages, 'tool', 'pending', {
+                  content: `Tool execution failed: ${error.message}`,
+                  status: 'error'
+                })
+              )
+              handleApiError(error)
+              setIsLoading(false)
+            }
+          }
+        )
+      } else {
+        // Non-streaming version
+        const result = await conversationService.sendMessage(conversationId!, content)
+        setMessages(result.messages)
+        setIsLoading(false)
+      }
     } catch (err: any) {
       handleApiError(err)
-    } finally {
       setIsLoading(false)
     }
   }
@@ -469,20 +285,10 @@ export function Chat({
   const sendMessage = (content: string) => {
     if (!content.trim()) return
     
-    if (demoMode) {
+    if (conversation) {
       sendMessageToConversation(content)
-    } else if (enableStreaming) {
-      if (conversation) {
-        sendStreamingMessageToConversation(content)
-      } else {
-        createNewStreamingConversation(content)
-      }
     } else {
-      if (conversation) {
-        sendMessageToConversation(content)
-      } else {
-        createNewConversation(content)
-      }
+      createNewConversation(content)
     }
   }
   
