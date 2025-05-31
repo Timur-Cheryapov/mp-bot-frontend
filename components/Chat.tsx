@@ -17,7 +17,8 @@ import {
   isAuthError
 } from "@/lib/utils/chat-helpers"
 import * as conversationService from "@/lib/conversation-service"
-import * as streamingService from "@/lib/conversation-streaming-service" 
+import * as streamingService from "@/lib/conversation-streaming-service"
+import type { ToolExecutionEvent, ToolCompleteEvent, StreamCallbacks } from "@/lib/utils/streaming-helpers"
 import { useParams } from "next/navigation"
 import { AuthRequiredDialog } from "@/components/AuthRequiredDialog"
 
@@ -144,11 +145,11 @@ export function Chat({
     try {
       if (enableStreaming) {
         // Streaming version
-        const streamCallbacks = {
+        const streamCallbacks: StreamCallbacks = {
           onChunk: (chunk: string) => {
             setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
           },
-          onToolExecution: (toolMessages: any[]) => {
+          onToolExecution: (toolMessages: ToolExecutionEvent[]) => {
             setMessages(prevMessages => clearThinkingMessage(prevMessages))
             for (const message of toolMessages) {
               const toolMessage = createUiMessage(
@@ -159,7 +160,7 @@ export function Chat({
               setMessages(prev => [...prev, toolMessage])
             }
           },
-          onToolComplete: (toolMessages: any[]) => {
+          onToolComplete: (toolMessages: ToolCompleteEvent[]) => {
             for (const message of toolMessages.reverse()) {
               setMessages(prevMessages => 
                 updateLastMessage(prevMessages, 'tool', 'pending', {
@@ -168,6 +169,7 @@ export function Chat({
                 })
               )
             }
+            
             // Add a new pending assistant message for continued streaming after tool execution
             const pendingAssistantMessage = createUiMessage(THINKING_MESSAGE, 'assistant', 'pending')
             setMessages(prev => [...prev, pendingAssistantMessage])
@@ -197,11 +199,12 @@ export function Chat({
           }
         }
 
-        if (isNewConversation) {
-          await streamingService.createStreamingConversation(content, systemPrompt, streamCallbacks)
-        } else {
-          await streamingService.sendStreamingMessage(conversationId!, content, streamCallbacks)
-        }
+        await streamingService.sendStreamingMessage(
+          content, 
+          streamCallbacks, 
+          conversationId, 
+          isNewConversation ? systemPrompt : undefined
+        )
       } else {
         // Non-streaming version
         let result
