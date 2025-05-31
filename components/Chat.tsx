@@ -125,173 +125,99 @@ export function Chat({
     }, PENDING_MESSAGE_DELAY)
   }
 
-  // Function to create a new conversation
-  const createNewConversation = async (content: string) => {
-    setIsLoading(true)
-    setError(null)
-    
-    addInitialMessages(content)
-    
-    if (demoMode) {
-      simulateDemoResponse(content)
-      return
-    }
-    
-    try {
-      if (enableStreaming) {
-        await streamingService.createStreamingConversation(
-          content,
-          systemPrompt,
-          {
-            onChunk: (chunk) => {
-              setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
-            },
-            onToolExecution: (toolMessages) => {
-              for (const message of toolMessages) {
-                const toolMessage = createUiMessage(
-                  `${message.message} (${message.toolName})`,
-                  'tool',
-                  'pending'
-                )
-                setMessages(prev => [...prev, toolMessage])
-              }
-            },
-            onToolComplete: (toolMessages) => {
-              setMessages(prevMessages => clearThinkingMessage(prevMessages))
-              for (const message of toolMessages.reverse()) {
-                setMessages(prevMessages => 
-                  updateLastMessage(prevMessages, 'tool', 'pending', {
-                    content: message.message,
-                    status: message.status
-                  })
-                )
-              }
-            },
-            onComplete: async (newConversationId) => {
-              try {
-                const result = await conversationService.getConversation(newConversationId)
-                setConversation(result.conversation)
-                setConversationId(result.conversation.id)
-                setMessages(result.messages)
-              } catch (err) {
-                console.error("Error fetching conversation after streaming:", err)
-              }
-              setIsLoading(false)
-            },
-            onError: (error) => {
-              setMessages(prevMessages => 
-                updateLastMessage(prevMessages, 'tool', 'pending', {
-                  content: `Tool execution failed: ${error.message}`,
-                  status: 'error'
-                })
-              )
-              handleApiError(error)
-              setIsLoading(false)
-            }
-          }
-        )
-      } else {
-        // Non-streaming version
-        const result = await conversationService.createConversation(content, systemPrompt)
-        setConversation(result.conversation)
-        setConversationId(result.conversation.id)
-        setMessages(result.messages)
-        setIsLoading(false)
-      }
-    } catch (err: any) {
-      handleApiError(err)
-      setIsLoading(false)
-    }
-  }
-  
-  // Function to send a message to an existing conversation
-  const sendMessageToConversation = async (content: string) => {
-    if (!conversationId && !demoMode) {
-      createNewConversation(content)
-      return
-    }
-    
-    setIsLoading(true)
-    setError(null)
-    
-    addInitialMessages(content)
-    
-    if (demoMode) {
-      simulateDemoResponse(content)
-      return
-    }
-
-    try {
-      if (enableStreaming) {
-        await streamingService.sendStreamingMessage(
-          conversationId!,
-          content,
-          {
-            onChunk: (chunk) => {
-              setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
-            },
-            onToolExecution: (toolMessages) => {
-              setMessages(prevMessages => clearThinkingMessage(prevMessages))
-              for (const message of toolMessages) {
-                const toolMessage = createUiMessage(
-                  `${message.message} (${message.toolName})`,
-                  'tool',
-                  'pending'
-                )
-                setMessages(prev => [...prev, toolMessage])
-              }
-            },
-            onToolComplete: (toolMessages) => {
-              for (const message of toolMessages.reverse()) {
-                setMessages(prevMessages => 
-                  updateLastMessage(prevMessages, 'tool', 'pending', {
-                    content: message.message,
-                    status: message.status
-                  })
-                )
-              }
-            },
-            onComplete: async (updatedConversationId) => {
-              try {
-                const result = await conversationService.getConversation(updatedConversationId)
-                setMessages(result.messages)
-              } catch (err) {
-                console.error("Error fetching conversation after streaming:", err)
-              }
-              setIsLoading(false)
-            },
-            onError: (error) => {
-              setMessages(prevMessages => 
-                updateLastMessage(prevMessages, 'tool', 'pending', {
-                  content: `Tool execution failed: ${error.message}`,
-                  status: 'error'
-                })
-              )
-              handleApiError(error)
-              setIsLoading(false)
-            }
-          }
-        )
-      } else {
-        // Non-streaming version
-        const result = await conversationService.sendMessage(conversationId!, content)
-        setMessages(result.messages)
-        setIsLoading(false)
-      }
-    } catch (err: any) {
-      handleApiError(err)
-      setIsLoading(false)
-    }
-  }
-  
-  // Function to handle sending a message
-  const sendMessage = (content: string) => {
+  // Function to handle sending a message (creates new conversation or sends to existing)
+  const sendMessage = async (content: string) => {
     if (!content.trim()) return
     
-    if (conversation) {
-      sendMessageToConversation(content)
-    } else {
-      createNewConversation(content)
+    setIsLoading(true)
+    setError(null)
+    
+    addInitialMessages(content)
+    
+    if (demoMode) {
+      simulateDemoResponse(content)
+      return
+    }
+    
+    const isNewConversation = !conversationId
+    
+    try {
+      if (enableStreaming) {
+        // Streaming version
+        const streamCallbacks = {
+          onChunk: (chunk: string) => {
+            setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
+          },
+          onToolExecution: (toolMessages: any[]) => {
+            setMessages(prevMessages => clearThinkingMessage(prevMessages))
+            for (const message of toolMessages) {
+              const toolMessage = createUiMessage(
+                `${message.message} (${message.toolName})`,
+                'tool',
+                'pending'
+              )
+              setMessages(prev => [...prev, toolMessage])
+            }
+          },
+          onToolComplete: (toolMessages: any[]) => {
+            for (const message of toolMessages.reverse()) {
+              setMessages(prevMessages => 
+                updateLastMessage(prevMessages, 'tool', 'pending', {
+                  content: message.message,
+                  status: message.status
+                })
+              )
+            }
+            // Add a new pending assistant message for continued streaming after tool execution
+            const pendingAssistantMessage = createUiMessage(THINKING_MESSAGE, 'assistant', 'pending')
+            setMessages(prev => [...prev, pendingAssistantMessage])
+          },
+          onComplete: async (returnedConversationId: string) => {
+            try {
+              const result = await conversationService.getConversation(returnedConversationId)
+              if (isNewConversation) {
+                setConversation(result.conversation)
+                setConversationId(result.conversation.id)
+              }
+              setMessages(result.messages)
+            } catch (err) {
+              console.error("Error fetching conversation after streaming:", err)
+            }
+            setIsLoading(false)
+          },
+          onError: (error: Error) => {
+            setMessages(prevMessages => 
+              updateLastMessage(prevMessages, 'tool', 'pending', {
+                content: `Tool execution failed: ${error.message}`,
+                status: 'error'
+              })
+            )
+            handleApiError(error)
+            setIsLoading(false)
+          }
+        }
+
+        if (isNewConversation) {
+          await streamingService.createStreamingConversation(content, systemPrompt, streamCallbacks)
+        } else {
+          await streamingService.sendStreamingMessage(conversationId!, content, streamCallbacks)
+        }
+      } else {
+        // Non-streaming version
+        let result
+        if (isNewConversation) {
+          result = await conversationService.createConversation(content, systemPrompt)
+          setConversation(result.conversation)
+          setConversationId(result.conversation.id)
+        } else {
+          result = await conversationService.sendMessage(conversationId!, content)
+        }
+        setMessages(result.messages)
+        setIsLoading(false)
+      }
+    } catch (err: any) {
+      handleApiError(err)
+      setIsLoading(false)
     }
   }
   
