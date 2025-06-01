@@ -48,7 +48,7 @@ export async function createConversation(
 ): Promise<{ conversation: Conversation, messages: ChatMessage[] }> {
   try {
     const token = await fetchCsrfToken();
-    const response = await fetch(`${API_BASE_URL}/new`, {
+    const response = await fetch(`${API_BASE_URL}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
