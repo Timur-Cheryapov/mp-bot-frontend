@@ -150,7 +150,9 @@ export function Chat({
             setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
           },
           onToolExecution: (toolMessages: ToolExecutionEvent[]) => {
+            // Clear thinking message if the answer before tool calling was empty or change status to success
             setMessages(prevMessages => clearThinkingMessage(prevMessages))
+            // Add tool messages
             for (const message of toolMessages) {
               const toolMessage = createUiMessage(
                 `${message.message} (${message.toolName})`,

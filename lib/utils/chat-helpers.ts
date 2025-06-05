@@ -78,10 +78,19 @@ export function clearThinkingMessage(messages: ChatMessage[]): ChatMessage[] {
   const updatedMessages = [...messages]
   const lastMessage = updatedMessages[updatedMessages.length - 1]
   
-  if (lastMessage && lastMessage.role === "assistant" && lastMessage.content === THINKING_MESSAGE) {
-    updatedMessages[updatedMessages.length - 1] = {
-      ...lastMessage,
-      content: '',
+  if (lastMessage && lastMessage.role === "assistant") {
+    // If the last message is a thinking message, clear it
+    if (lastMessage.content === THINKING_MESSAGE){
+      updatedMessages[updatedMessages.length - 1] = {
+        ...lastMessage,
+        content: '',
+      }
+    } else {
+      // If the last message is not a thinking message, set the status to success
+      updatedMessages[updatedMessages.length - 1] = {
+        ...lastMessage,
+        status: 'success',
+      }
     }
   }
   
