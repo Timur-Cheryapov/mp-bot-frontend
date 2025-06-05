@@ -6,7 +6,7 @@ export interface StreamCallbacks {
   onComplete: (conversationId: string) => void;
   onError: (error: Error) => void;
   onToolExecution?: (messages: ToolExecutionEvent[]) => void;
-  onToolComplete?: (messages: ToolCompleteEvent[]) => void;
+  onToolComplete?: (message: ToolCompleteEvent) => void;
 }
 
 export type ToolExecutionEvent = {
@@ -88,7 +88,7 @@ export function handleSSEEvent(
       
     case 'tool_complete':
       try {
-        const processData: ToolCompleteEvent[] = JSON.parse(eventData);
+        const processData: ToolCompleteEvent = JSON.parse(eventData);
         if (callbacks.onToolComplete) {
           callbacks.onToolComplete(processData);
         }

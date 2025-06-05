@@ -10,13 +10,15 @@ export const PENDING_MESSAGE_DELAY = 300
 export function createUiMessage(
   content: string, 
   role: MessageRole, 
-  status: MessageStatus
+  status: MessageStatus,
+  toolName?: string
 ): ChatMessage {
   return {
     role,
     content,
     status,
     timestamp: new Date().toISOString(),
+    toolName
   }
 }
 
@@ -27,12 +29,16 @@ export function updateLastMessage(
   messages: ChatMessage[],
   role: MessageRole,
   status: MessageStatus,
-  updates: Partial<ChatMessage>
+  updates: Partial<ChatMessage>,
+  toolName?: string
 ): ChatMessage[] {
   const updatedMessages = [...messages]
   
   for (let i = updatedMessages.length - 1; i >= 0; i--) {
-    if (updatedMessages[i].role === role && updatedMessages[i].status === status) {
+    if (updatedMessages[i].role === role &&
+      updatedMessages[i].status === status &&
+      updatedMessages[i].toolName === toolName
+    ) {
       updatedMessages[i] = {
         ...updatedMessages[i],
         ...updates,

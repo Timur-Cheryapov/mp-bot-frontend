@@ -17,6 +17,7 @@ export interface ChatMessage {
   content: string;
   status: MessageStatus;
   timestamp: string;
+  toolName?: string;
 }
 
 /**

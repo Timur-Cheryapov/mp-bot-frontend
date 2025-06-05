@@ -155,20 +155,19 @@ export function Chat({
               const toolMessage = createUiMessage(
                 `${message.message} (${message.toolName})`,
                 'tool',
-                'pending'
+                'pending',
+                message.toolName
               )
               setMessages(prev => [...prev, toolMessage])
             }
           },
-          onToolComplete: (toolMessages: ToolCompleteEvent[]) => {
-            for (const message of toolMessages.reverse()) {
-              setMessages(prevMessages => 
-                updateLastMessage(prevMessages, 'tool', 'pending', {
-                  content: message.message,
-                  status: message.status
-                })
-              )
-            }
+          onToolComplete: (toolMessage: ToolCompleteEvent) => {
+            setMessages(prevMessages => 
+              updateLastMessage(prevMessages, 'tool', 'pending', {
+                content: toolMessage.message,
+                status: toolMessage.status
+              }, toolMessage.toolName)
+            )
             
             // Add a new pending assistant message for continued streaming after tool execution
             const pendingAssistantMessage = createUiMessage(THINKING_MESSAGE, 'assistant', 'pending')
