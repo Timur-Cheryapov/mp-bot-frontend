@@ -44,7 +44,8 @@ async function streamMessage(
   message: string,
   callbacks: StreamCallbacks,
   systemPrompt?: string,
-  isNewConversation: boolean = false
+  isNewConversation: boolean = false,
+  abortController?: AbortController
 ): Promise<void> {
   try {
     const token = await fetchCsrfToken();
@@ -55,7 +56,8 @@ async function streamMessage(
       method: 'POST',
       headers,
       body: JSON.stringify(body),
-      credentials: 'include'
+      credentials: 'include',
+      signal: abortController?.signal
     });
 
     const defaultErrorMessage = isNewConversation 
@@ -63,9 +65,14 @@ async function streamMessage(
       : 'Failed to send message';
     
     await handleApiResponse(response, defaultErrorMessage);
-    await processStream(response, callbacks);
+    await processStream(response, callbacks, abortController);
     
   } catch (error) {
+    // Handle abort gracefully - don't throw error for user-initiated stops
+    if (error instanceof Error && error.name === 'AbortError') {
+      return; // Silent return on abort
+    }
+    
     if (error instanceof ApiError) {
       throw error;
     }
@@ -87,12 +94,13 @@ export async function sendStreamingMessage(
   message: string,
   callbacks: StreamCallbacks,
   conversationId?: string | null,
-  systemPrompt?: string
+  systemPrompt?: string,
+  abortController?: AbortController
 ): Promise<void> {
   const isNewConversation = !conversationId;
   const endpoint = isNewConversation 
     ? `${API_BASE_URL}/`
     : `${API_BASE_URL}/${conversationId}`;
   
-  await streamMessage(endpoint, message, callbacks, systemPrompt, isNewConversation);
+  await streamMessage(endpoint, message, callbacks, systemPrompt, isNewConversation, abortController);
 }

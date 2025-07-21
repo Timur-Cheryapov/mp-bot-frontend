@@ -5,18 +5,21 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { Square, Send } from "lucide-react"
 
 // Maximum character limit for messages
 const MAX_CHARS = 2000
 
 interface ChatFooterProps {
   onSendMessage?: (message: string) => void
+  onStop?: () => void
   disabled?: boolean
   className?: string
 }
 
 export function ChatFooter({ 
   onSendMessage, 
+  onStop,
   disabled = false,
   className 
 }: ChatFooterProps) {
@@ -94,15 +97,29 @@ export function ChatFooter({
             )}
           </div>
 
-          {/* Send button */}
-          <Button 
-            type="submit"
-            size="sm"
-            className="px-4 h-10 flex-shrink-0"
-            disabled={!message.trim() || message.length > MAX_CHARS || disabled}
-          >
-            Send
-          </Button>
+          {/* Send/Stop button */}
+          {disabled ? (
+            <Button 
+              type="button"
+              size="sm"
+              variant="destructive"
+              className="px-3 h-10 flex-shrink-0 gap-1.5"
+              onClick={onStop}
+            >
+              <Square className="h-3 w-3" />
+              Stop
+            </Button>
+          ) : (
+            <Button 
+              type="submit"
+              size="sm"
+              className="px-3 h-10 flex-shrink-0 gap-1.5"
+              disabled={!message.trim() || message.length > MAX_CHARS}
+            >
+              <Send className="h-3 w-3" />
+              Send
+            </Button>
+          )}
         </div>
       </form>
     </Card>

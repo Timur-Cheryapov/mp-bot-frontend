@@ -45,6 +45,7 @@ export function Chat({
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
+  const [abortController, setAbortController] = useState<AbortController | null>(null)
   
   // Check user authentication and load existing conversation if ID is provided
   useEffect(() => {
@@ -126,9 +127,32 @@ export function Chat({
     }, PENDING_MESSAGE_DELAY)
   }
 
+  // Function to handle stopping generation
+  const handleStop = () => {
+    if (abortController) {
+      abortController.abort()
+      setAbortController(null)
+      setIsLoading(false)
+      
+      // Clear any pending "thinking" message and mark the last assistant message as completed
+      setMessages(prevMessages => {
+        return prevMessages.map(msg => {
+          if (msg.role === 'assistant' && msg.status === 'pending') {
+            return { ...msg, status: 'success' as const }
+          }
+          return msg
+        })
+      })
+    }
+  }
+
   // Function to handle sending a message (creates new conversation or sends to existing)
   const sendMessage = async (content: string) => {
     if (!content.trim()) return
+    
+    // Create abort controller for this request
+    const controller = new AbortController()
+    setAbortController(controller)
     
     setIsLoading(true)
     setError(null)
@@ -186,6 +210,7 @@ export function Chat({
             } catch (err) {
               console.error("Error fetching conversation after streaming:", err)
             }
+            setAbortController(null)
             setIsLoading(false)
           },
           onError: (error: Error) => {
@@ -196,6 +221,7 @@ export function Chat({
               })
             )
             handleApiError(error)
+            setAbortController(null)
             setIsLoading(false)
           }
         }
@@ -204,7 +230,8 @@ export function Chat({
           content, 
           streamCallbacks, 
           conversationId, 
-          isNewConversation ? systemPrompt : undefined
+          isNewConversation ? systemPrompt : undefined,
+          controller
         )
       } else {
         // Non-streaming version
@@ -217,10 +244,12 @@ export function Chat({
           result = await conversationService.sendMessage(conversationId!, content)
         }
         setMessages(result.messages)
+        setAbortController(null)
         setIsLoading(false)
       }
     } catch (err: any) {
       handleApiError(err)
+      setAbortController(null)
       setIsLoading(false)
     }
   }
@@ -250,7 +279,7 @@ export function Chat({
       >
         <ChatHeader title={conversation?.title || title} onClear={clearMessages} />
         <ChatBody messages={messages} />
-        <ChatFooter onSendMessage={sendMessage} disabled={isLoading} />
+        <ChatFooter onSendMessage={sendMessage} onStop={handleStop} disabled={isLoading} />
       </Card>
       
       <AuthRequiredDialog 

@@ -121,7 +121,8 @@ export function handleSSEEvent(
  */
 export async function processStream(
   response: Response,
-  callbacks: StreamCallbacks
+  callbacks: StreamCallbacks,
+  abortController?: AbortController
 ): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) {
@@ -133,7 +134,25 @@ export async function processStream(
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      // Check if abort was requested
+      if (abortController?.signal.aborted) {
+        reader.cancel();
+        // Return gracefully without error - keep what was generated
+        return conversationId.current || '';
+      }
+      
+      let readResult;
+      try {
+        readResult = await reader.read();
+      } catch (readError) {
+        // Handle abort during read
+        if (readError instanceof Error && readError.name === 'AbortError') {
+          return conversationId.current || '';
+        }
+        throw readError;
+      }
+      
+      const { done, value } = readResult;
       
       if (done) {
         break;
