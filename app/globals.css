@@ -120,3 +120,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Markdown table styles */
+  .markdown-content table {
+    @apply min-w-full border-collapse border border-border text-sm my-4;
+  }
+  
+  .markdown-content thead {
+    @apply bg-muted;
+  }
+  
+  .markdown-content th {
+    @apply border border-border px-3 py-2 text-left font-medium text-foreground;
+  }
+  
+  .markdown-content td {
+    @apply border border-border px-3 py-2 text-muted-foreground;
+  }
+  
+  .markdown-content .table-wrapper {
+    @apply overflow-x-auto my-4;
+  }
+}

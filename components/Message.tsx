@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils"
 import { Card } from "@/components/ui/card"
 import { ChatMessage } from "@/lib/types/conversation"
 import { Loader2, CheckCircle2, XCircle, Wrench } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 export function Message(props: ChatMessage) {
   const { content, role, status, timestamp } = props
@@ -52,7 +54,20 @@ export function Message(props: ChatMessage) {
             }
           )}
         >
-          {content}
+          <div className="markdown-content">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ children }) => (
+                  <div className="table-wrapper">
+                    <table>{children}</table>
+                  </div>
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
         </Card>
         
         <div className={cn(
