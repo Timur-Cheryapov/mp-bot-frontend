@@ -29,7 +29,7 @@ export function Message(props: ChatMessage) {
       }
     } catch {
       return {
-        endpoint: "tool_result",
+        endpoint: "Calling tool...",
         fullJson: content
       }
     }
