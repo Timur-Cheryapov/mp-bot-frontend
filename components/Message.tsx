@@ -66,7 +66,7 @@ export function Message(props: ChatMessage) {
           <Card className="w-full shadow-sm text-sm sm:text-base break-words overflow-hidden p-0 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 gap-0">
             {/* Tool Header - Always Visible */}
             <div 
-              className="flex items-center justify-between w-full min-h-[40px] px-4 py-4 bg-gray-200 dark:bg-gray-800 rounded-t-md cursor-pointer transition-colors"
+              className="flex items-center justify-between w-full min-h-[40px] px-4 py-4 bg-gray-200 dark:bg-gray-800 rounded-t-md cursor-pointer transition-colors gap-1"
               onClick={() => setIsExpanded(!isExpanded)}
             >
               <div className="flex items-center space-x-2 flex-1">
