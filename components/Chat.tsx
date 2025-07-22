@@ -170,6 +170,9 @@ export function Chat({
       if (enableStreaming) {
         // Streaming version
         const streamCallbacks: StreamCallbacks = {
+          onConversationId: (conversationId: string) => {
+            setConversationId(conversationId)
+          },
           onChunk: (chunk: string) => {
             setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
           },

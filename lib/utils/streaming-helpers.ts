@@ -2,6 +2,7 @@ import { MessageStatus } from '../types/conversation';
 
 // Types for streaming
 export interface StreamCallbacks {
+  onConversationId: (conversationId: string) => void;
   onChunk: (chunk: string) => void;
   onComplete: (conversationId: string) => void;
   onError: (error: Error) => void;
@@ -62,6 +63,9 @@ export function handleSSEEvent(
   switch (eventType) {
     case 'conversationId':
       conversationId.current = eventData;
+      if (callbacks.onConversationId) {
+        callbacks.onConversationId(eventData);
+      }
       break;
       
     case 'chunk':
