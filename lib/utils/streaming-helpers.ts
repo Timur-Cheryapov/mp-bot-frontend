@@ -1,10 +1,10 @@
-import { MessageStatus } from '../types/conversation';
+import { Conversation, MessageStatus } from '../types/conversation';
 
 // Types for streaming
 export interface StreamCallbacks {
-  onConversationId: (conversationId: string) => void;
+  onConversationCreated: (conversation: Conversation) => void;
   onChunk: (chunk: string) => void;
-  onComplete: (conversationId: string) => void;
+  onComplete: () => void;
   onError: (error: Error) => void;
   onToolExecution?: (messages: ToolExecutionEvent[]) => void;
   onToolComplete?: (message: ToolCompleteEvent) => void;
@@ -57,14 +57,12 @@ export function parseSSEEvent(event: string): { eventType: string; eventData: st
 export function handleSSEEvent(
   eventType: string,
   eventData: string,
-  callbacks: StreamCallbacks,
-  conversationId: { current: string | null }
+  callbacks: StreamCallbacks
 ): boolean {
   switch (eventType) {
-    case 'conversationId':
-      conversationId.current = eventData;
-      if (callbacks.onConversationId) {
-        callbacks.onConversationId(eventData);
+    case 'conversationCreated':
+      if (callbacks.onConversationCreated) {
+        callbacks.onConversationCreated(JSON.parse(eventData));
       }
       break;
       
@@ -127,7 +125,7 @@ export async function processStream(
   response: Response,
   callbacks: StreamCallbacks,
   abortController?: AbortController
-): Promise<string> {
+): Promise<void> {
   const reader = response.body?.getReader();
   if (!reader) {
     throw new ApiError('Stream reader not available', 500);
@@ -142,7 +140,7 @@ export async function processStream(
       if (abortController?.signal.aborted) {
         reader.cancel();
         // Return gracefully without error - keep what was generated
-        return conversationId.current || '';
+        return;
       }
       
       let readResult;
@@ -151,7 +149,7 @@ export async function processStream(
       } catch (readError) {
         // Handle abort during read
         if (readError instanceof Error && readError.name === 'AbortError') {
-          return conversationId.current || '';
+          return;
         }
         throw readError;
       }
@@ -170,27 +168,23 @@ export async function processStream(
       
       for (const event of events) {
         const { eventType, eventData } = parseSSEEvent(event);
-        const shouldStop = handleSSEEvent(eventType, eventData, callbacks, conversationId);
+        const shouldStop = handleSSEEvent(eventType, eventData, callbacks);
         
         if (shouldStop) {
-          return conversationId.current || '';
+          return;
         }
       }
     }
 
-    if (!conversationId.current) {
-      throw new ApiError('No conversation ID returned', 500);
-    }
-
     try {
       // Callback for completion
-      callbacks.onComplete(conversationId.current);
+      callbacks.onComplete();
     } catch (saveError) {
       callbacks.onError(saveError instanceof Error ? saveError : new Error(String(saveError)));
-      return conversationId.current;
+      return;
     }
     
-    return conversationId.current;
+    return;
   } catch (error) {
     callbacks.onError(error instanceof Error ? error : new Error(String(error)));
     throw error;

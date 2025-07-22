@@ -170,8 +170,9 @@ export function Chat({
       if (enableStreaming) {
         // Streaming version
         const streamCallbacks: StreamCallbacks = {
-          onConversationId: (conversationId: string) => {
-            setConversationId(conversationId)
+          onConversationCreated: (conversation: Conversation) => {
+            setConversation(conversation)
+            setConversationId(conversation.id)
           },
           onChunk: (chunk: string) => {
             setMessages(prevMessages => updateAssistantMessageWithChunk(prevMessages, chunk))
@@ -202,17 +203,12 @@ export function Chat({
             const pendingAssistantMessage = createUiMessage(THINKING_MESSAGE, 'assistant', 'pending')
             setMessages(prev => [...prev, pendingAssistantMessage])
           },
-          onComplete: async (returnedConversationId: string) => {
-            try {
-              const result = await conversationService.getConversation(returnedConversationId)
-              if (isNewConversation) {
-                setConversation(result.conversation)
-                setConversationId(result.conversation.id)
-              }
-              setMessages(result.messages)
-            } catch (err) {
-              console.error("Error fetching conversation after streaming:", err)
-            }
+          onComplete: async () => {
+            setMessages(prevMessages => 
+              updateLastMessage(prevMessages, 'assistant', 'pending', {
+                status: 'success'
+              })
+            )
             setAbortController(null)
             setIsLoading(false)
           },
