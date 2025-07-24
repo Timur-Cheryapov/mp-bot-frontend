@@ -8,7 +8,7 @@ import { Loader2, CheckCircle2, XCircle, Wrench, ChevronDown, ChevronUp } from "
 import { MarkdownContent } from "@/components/MarkdownContent"
 
 export function Message(props: ChatMessage) {
-  const { content, role, status, timestamp } = props
+  const { content, role, status, timestamp, toolName } = props
   const isUser = role === "user"
   const isTool = role === "tool"
   const [isExpanded, setIsExpanded] = useState(false)
@@ -24,7 +24,7 @@ export function Message(props: ChatMessage) {
     try {
       const parsed = JSON.parse(content)
       return {
-        endpoint: parsed.metadata?.endpoint || "unknown_tool",
+        endpoint: toolName || parsed.metadata?.endpoint || "unknown_tool",
         fullJson: parsed
       }
     } catch {
