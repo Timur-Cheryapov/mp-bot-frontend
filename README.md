@@ -4,6 +4,10 @@
 
 **MP Bot** is a sophisticated AI-powered chatbot platform designed for e-commerce marketplace optimization, specifically targeting Wildberries business analytics. The application provides real-time conversational AI with advanced tool execution capabilities, allowing users to interact with their marketplace data through natural language conversations.
 
+Demo Video is available on the project's subpage [MP Bot](https://timur-cheryapov.github.io/mp-bot/index.html).
+
+<img width="1306" height="1197" alt="chat-interface" src="https://github.com/user-attachments/assets/5f6759d3-0149-4159-b184-234f28637b77" />
+
 ## Key Features
 
 - **Real-time streaming conversations** with Server-Sent Events (SSE) implementation
